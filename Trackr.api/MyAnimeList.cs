@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Xml;
 
@@ -39,7 +41,7 @@ namespace Trackr.api {
             var data = new FormUrlEncodedContent(new [] {
                 new KeyValuePair<string, string>("data", "XML"),
             });
-            var response = await _client.PostAsync(UrlBase, data);
+            var response = await _client.PostAsync(Path.Combine(UrlBase, "account", "verify_credentials.xml"), data);
 
             var xml = new XmlDocument();
                 xml.Load(response.Content.ReadAsStreamAsync().Result);
@@ -64,7 +66,7 @@ namespace Trackr.api {
                    "<status>" + status.GetTypeCode() + "<status>" +
                    "</entry>")
             });
-            var reponse = await _client.PostAsync(UrlBase, data);
+            var reponse = await _client.PostAsync(Path.Combine(UrlBase, "animelist", "add", id+".xml"), data);
             return reponse.StatusCode == HttpStatusCode.Created;
         }
     }

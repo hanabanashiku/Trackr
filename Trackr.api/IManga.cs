@@ -9,7 +9,8 @@ namespace Trackr.api {
 
         Task<bool> VerifyCredentials();
         Task<bool> AddManga();
-        void RemoveManga();
+        Task<bool> RemoveManga();
         Task<List<Manga>> FindManga(string keywords);
+        Task<List<Manga>> PullMangaList();
     }
 }

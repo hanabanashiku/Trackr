@@ -27,8 +27,13 @@ namespace Trackr.api {
             Music
         }
 
+        /// <summary>
+        /// The day the series started airing.
+        /// </summary>
         public DateTime StartDate { get; }
-
+        /// <summary>
+        /// The day the series finished airing.
+        /// </summary>
         public DateTime EndDate { get; }
 
         /// <summary>
@@ -40,6 +45,15 @@ namespace Trackr.api {
         /// The running status of the show.
         /// </summary>
         public RunningStatuses Status { get; }
+
+        /// <summary>
+        /// The number of episodes aired.
+        /// </summary>
+        public int Episodes { get; }
+        /// <summary>
+        /// The last episode the user completed.
+        /// </summary>
+        public int CurrentEpisode { get; set; }
 
         internal Anime(int id, string title, string english,
             string[] synonyms, int episodes, double score,

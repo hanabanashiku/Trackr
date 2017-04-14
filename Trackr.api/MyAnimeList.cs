@@ -1,4 +1,4 @@
-﻿using System;
+﻿﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -191,7 +191,7 @@ namespace Trackr.api {
         /// <exception cref="ApiFormatException">If the response was malformed.</exception>
         public async Task<List<Manga>> FindManga(string keywords){
             List<Manga> result = new List<Manga>();
-            var response = await _client.GetAsync(Path.Combine(UrlBase, "manga", "search.xml?q=") + keywords);\
+            var response = await _client.GetAsync(Path.Combine(UrlBase, "manga", "search.xml?q=") + keywords);
             if(response.StatusCode == HttpStatusCode.NoContent)
                 return result;
             XmlDocument xml = new XmlDocument();

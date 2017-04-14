@@ -9,6 +9,7 @@ using System.Net.Http.Headers;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml;
+using Trackr.Api;
 
 namespace Trackr.api {
     /// <summary>
@@ -168,7 +169,7 @@ namespace Trackr.api {
                     "<status>" + (int)listStatus + "</status>" + 
                 "</entry>")
             });
-            var response = await _client.PostAsync(Path.Combine(UrlBase, "mangalist", id + ".xml", data));
+            var response = await _client.PostAsync(Path.Combine(UrlBase, "mangalist", id + ".xml"), data);
             return response.StatusCode == HttpStatusCode.Created;
         }
 
@@ -180,6 +181,46 @@ namespace Trackr.api {
         public async Task<bool> RemoveManga(int id) {
             var response = await _client.DeleteAsync(Path.Combine(UrlBase, "mangalist", id + ".xml"));
             return response.Content.ReadAsStringAsync().Result.Contains("Deleted");
+        }
+
+        /// <summary>
+        /// Search for a manga in the MyAnimeList database.
+        /// </summary>
+        /// <param name="keywords">The search terms to use.</param>
+        /// <returns>A list of all relevant results.</returns>
+        /// <exception cref="ApiFormatException">If the response was malformed.</exception>
+        public async Task<List<Manga>> FindManga(string keywords){
+            List<Manga> result = new List<Manga>();
+            var response = await _client.GetAsync(Path.Combine(UrlBase, "manga", "search.xml?q=") + keywords);\
+            if(response.StatusCode == HttpStatusCode.NoContent)
+                return result;
+            XmlDocument xml = new XmlDocument();
+            xml.Load(response.Content.ReadAsStreamAsync().Result);
+            XmlNodeList nl = xml.SelectNodes("/manga/entry");
+            result.AddRange(from XmlNode n in nl select ToManga(n));
+            return result;
+        }
+
+        /// <summary>
+        /// Upedate the given entry on the authenticated user's list.
+        /// </summary>
+        /// <param name="manga">The manga to update with updated list values</param>
+        /// <returns>true on success.</returns>
+        public async Task<bool> UpdateManga(Manga manga){
+            var data = new FormUrlEncodedContent(new [] {
+                new KeyValuePair<string, string>("data",
+                    "<?xml version=\"1.0\" encoding=\"UTF-8\"/>" +
+                    "<entry>" +
+                        "<chapter>" + manga.CurrentChapter + "</chapter>" +
+                        "<volume>" + manga.CurrentVolume + "</volume>" +
+                        "<status>" + (int)manga.ListStatus + "</status>" +
+                        "<date_start>" + manga.UserStart.ToString(DateFormat) + "</date_start>" +
+                        "<date_finish>" + manga.UserEnd.ToString(DateFormat) + "</date_finish>" +
+                        "<scan_group>" + manga.ScanGroup + "</scan_group>" +
+                    "</entry>"),
+            });
+            var response = await _client.PostAsync(Path.Combine(UrlBase, "mangalist", "update", manga.Id + ".xml"), data);
+            return response.Content.ReadAsStringAsync().Result.Contains("Updated");
         }
 
         // convert to anime object from node.
@@ -318,7 +359,65 @@ namespace Trackr.api {
         }
 
         private static Manga ToManga(XmlNode node) {
+            if(node.Name != "entry")
+                throw new ApiFormatException("The node received was not a manga entry node");
+            if(!node.HasChildNodes)
+                throw new ApiFormatException("The node received contained no information");
 
+            try {
+                int id = int.Parse(node.SelectSingleNode("/entry/id").Value);
+                string title = node.SelectSingleNode("/entry/title").Value;
+                string english = node.SelectSingleNode("/entry/english").Value;
+                string[] synonyms = Regex.Split(node.SelectSingleNode("/entry/synonyms").Value, "; ");
+                int chapters = int.Parse(node.SelectSingleNode("/entry/chapters").Value);
+                int volumes = int.Parse(node.SelectSingleNode("/entry/volumes").Value);
+                double score = double.Parse(node.SelectSingleNode("/entry/score").Value);
+                Manga.MangaTypes type = ResolveMangaType(node.SelectSingleNode("/entry/type").Value);
+                Manga.RunningStatuses status = ResolveMangaStatus(node.SelectSingleNode("/entry/status").Value);
+                string startstring = node.SelectSingleNode("/entry/start_date").Value;
+                string endstring = node.SelectSingleNode("/entry/end_date").Value;
+                DateTime start = (startstring == DefaultDate)
+                    ? DateTime.MinValue
+                    : DateTime.ParseExact(startstring, DateFormat, CultureInfo.InvariantCulture);
+                DateTime end = (endstring == DefaultDate)
+                    ? DateTime.MinValue
+                    : DateTime.ParseExact(endstring, DateFormat, CultureInfo.InvariantCulture);
+                string synopsis = node.SelectSingleNode("/entry/synopsis").Value;
+                string url = node.SelectSingleNode("/entry/image").Value;
+                return new Manga(id, title, english, synonyms, chapters, volumes, score, type, status, start, end,
+                    synopsis, url);
+            }
+            catch(NullReferenceException) {
+                throw new ApiFormatException("One or more required node was missing from the response");
+            }
+        }
+
+        private static Manga.MangaTypes ResolveMangaType(string type){
+            switch(type) {
+                case "One-Shot":
+                    return Manga.MangaTypes.OneShot;
+                case "Novel":
+                    return Manga.MangaTypes.Novel;
+                case "Manhwa":
+                    return Manga.MangaTypes.Manhwa;
+                case "Manhua":
+                    return Manga.MangaTypes.Manhua;
+                case "Doujinshi":
+                    return Manga.MangaTypes.Doujinshi;
+                default:
+                    return Manga.MangaTypes.Manga;
+            }
+        }
+
+        private static Manga.RunningStatuses ResolveMangaStatus(string status){
+            switch(status) {
+                case "Finished":
+                    return Manga.RunningStatuses.Finished;
+                case "Not yet published":
+                    return Manga.RunningStatuses.NotYetPublished;
+                default:
+                    return Manga.RunningStatuses.Publishing;
+            }
         }
     }
 }

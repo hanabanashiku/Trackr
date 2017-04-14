@@ -1,4 +1,7 @@
-﻿namespace Trackr.Api{
+﻿using System;
+using Trackr.api;
+
+namespace Trackr.Api{
     /// <summary>
     /// Represents a manga item from an API call
     /// </summary>
@@ -6,7 +9,7 @@
         /// <summary>
         /// Specifies the API-defined manga type
         /// </summary>
-        enum MangaTypes {
+        public enum MangaTypes {
             Manga,
             Novel,
             OneShot,
@@ -18,7 +21,7 @@
         /// <summary>
         /// Values representing the running status of a manga.
         /// </summary>
-        enum RunningStatuses {
+        public enum RunningStatuses {
             Publishing,
             Finished,
             NotYetPublished
@@ -43,18 +46,24 @@
         /// <summary>
         /// The current running status of the manga.
         /// </summary>
-        RunningStatuses Status { get; }
+        public RunningStatuses Status { get; }
         /// <summary>
         /// The type of manga.
         /// </summary>
-        MangaTypes Type { get; }
+        public MangaTypes Type { get; }
         /// <summary>
         /// The last chapter the user completed.
+        /// </summary>
         public int CurrentChapter { get; set; }
         /// <summary>
         /// The last volume the user completed.
         /// </summary>
         public int CurrentVolume { get; set; }
+
+        /// <summary>
+        /// The scan group that distributed the manga scans.
+        /// </summary>
+        public string ScanGroup { get; set; } = string.Empty;
 
         internal Manga(int id, string title, string english,
             string[] synonyms, int chapters, int volumes, double score,

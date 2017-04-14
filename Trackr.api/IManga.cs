@@ -8,8 +8,9 @@ namespace Trackr.api {
     public interface IManga {
 
         Task<bool> VerifyCredentials();
-        Task<bool> AddManga();
-        Task<bool> RemoveManga();
+        Task<bool> AddManga(int id, ApiEntry.ListStatuses listStatus);
+        Task<bool> RemoveManga(int id);
+        Task<bool> UpdateManga(Manga manga);
         Task<List<Manga>> FindManga(string keywords);
         Task<List<Manga>> PullMangaList();
     }

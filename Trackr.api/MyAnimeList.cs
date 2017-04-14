@@ -25,7 +25,7 @@ namespace Trackr.api {
         public new string Username { get; }
 
         private const string UrlBase = "http://myanimelist.net/api/";
-        private const string OldUrlBase = "http://myanimelist.net/malappinfo.php?";
+        private const string OldUrlBase = "http://myanimelist.net/malappinfo.php";
         private const string DateFormat = "yyyy-MM-dd";
         private const string DefaultDate = "0000-00-00";
 
@@ -61,7 +61,7 @@ namespace Trackr.api {
         }
 
         /// <summary>
-        /// Add an anime to the list
+        /// Add an anime to the authenticated user's list.
         /// </summary>
         /// <param name="id">The MAL ID number of the given anime</param>
         /// <param name="listStatus">The listStatus to add it under (default is Currently Watching)</param>
@@ -72,7 +72,7 @@ namespace Trackr.api {
                    "<?xml version \"1.0\" encoding=\"UTF-8\"?>" +
                    "<entry>" +
                    "<episode>0</episode>" +
-                   "<listStatus>" + listStatus.GetTypeCode() + "</listStatus>" +
+                   "<status>" + (int)listStatus + "</status>" +
                    "</entry>")
             });
             var reponse = await _client.PostAsync(Path.Combine(UrlBase, "animelist", "add", id+".xml"), data);
@@ -80,7 +80,7 @@ namespace Trackr.api {
         }
 
         /// <summary>
-        /// Remove an anime from the database
+        /// Remove an anime from the authenticated user's list.
         /// </summary>
         /// <param name="id">The anime to remove</param>
         /// <returns>true on success</returns>
@@ -90,7 +90,7 @@ namespace Trackr.api {
         }
 
         /// <summary>
-        /// Search for an anime in the MyAnimeList database
+        /// Search for an anime in the MyAnimeList database.
         /// </summary>
         /// <param name="keywords">The search term to use</param>
         /// <returns>A list of all anime found.</returns>
@@ -107,7 +107,7 @@ namespace Trackr.api {
         }
 
         /// <summary>
-        /// Update the given entry on the user's remote list.
+        /// Update the given entry on the authenticated user's list.
         /// </summary>
         /// <param name="anime">The anime to update, with updated values.</param>
         /// <returns>true on success</returns>
@@ -132,7 +132,7 @@ namespace Trackr.api {
         }
 
         /// <summary>
-        /// Get the user's anime list from MyAnimeList.
+        /// Get the authenticated user's anime list.
         /// </summary>
         /// <returns>A list of all anime in the user's list</returns>
         /// <exception cref="ApiFormatException">if the response is malformed.</exception>
@@ -150,6 +150,36 @@ namespace Trackr.api {
             if (nl != null)
                 results.AddRange(from XmlNode n in nl select ToAnimeFromOld(n));
             return results;
+        }
+
+        /// <summary>
+        /// Add a manga to the authenticated user's list.
+        /// </summary>
+        /// <param name="id">The MAL ID of the given manga.</param>
+        /// <param name="listStatus">The list status of the manga (default is currently reading).</param>
+        /// <returns>true on success</returns>
+        public async Task<bool> AddManga(int id, ApiEntry.ListStatuses listStatus = ApiEntry.ListStatuses.Current) {
+            var data = new FormUrlEncodedContent(new[] {
+                new KeyValuePair<string, string>("data",
+                "<?xml version =\"1.0\" encoding=\"UTF-8\"?>" + 
+                "<entry>" + 
+                    "<chapter>0</chapter>" + 
+                    "<volume>0</volume>" + 
+                    "<status>" + (int)listStatus + "</status>" + 
+                "</entry>")
+            });
+            var response = await _client.PostAsync(Path.Combine(UrlBase, "mangalist", id + ".xml", data));
+            return response.StatusCode == HttpStatusCode.Created;
+        }
+
+        /// <summary>
+        /// Remove a manga from the authenticated user's list.
+        /// </summary>
+        /// <param name="id">The MAL ID of the manga to remove.</param>
+        /// <returns>true on success</returns>
+        public async Task<bool> RemoveManga(int id) {
+            var response = await _client.DeleteAsync(Path.Combine(UrlBase, "mangalist", id + ".xml"));
+            return response.Content.ReadAsStringAsync().Result.Contains("Deleted");
         }
 
         // convert to anime object from node.
@@ -285,6 +315,10 @@ namespace Trackr.api {
                 default:
                     return Anime.RunningStatuses.Airing;
             }
+        }
+
+        private static Manga ToManga(XmlNode node) {
+
         }
     }
 }

@@ -7,7 +7,7 @@ namespace Trackr.api {
     public class Anime : ApiEntry{
 
         /// <summary>
-        /// The current running status of the given anime.
+        /// Values representing the running status of the given anime.
         /// </summary>
         public enum RunningStatuses {
             Airing,

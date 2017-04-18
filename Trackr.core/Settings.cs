@@ -30,7 +30,7 @@ namespace Trackr.core {
                 var s = new XmlSerializer(typeof(Settings));
                 return (Settings) s.Deserialize(fs);
             }
-            catch (FileNotFoundException) {
+            catch (IOException) {
                 return new Settings();
             }
             finally {

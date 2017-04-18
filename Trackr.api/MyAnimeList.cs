@@ -40,7 +40,7 @@ namespace Trackr.api {
             _clientLogin = credentials;
             _client = new HttpClient();
             _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", _clientLogin.Credentials);
-            _client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue(UserAgent));
+            _client.DefaultRequestHeaders.Add("User-Agent", UserAgent);
             Username = _clientLogin.Username;
         }
 
@@ -51,13 +51,7 @@ namespace Trackr.api {
         /// <exception cref="ApiRequestException" />
         public async Task<bool> VerifyCredentials(){
             var response = await _client.GetAsync(Path.Combine(UrlBase, "account", "verify_credentials.xml"));
-
-            var xml = new XmlDocument();
-                xml.Load(response.Content.ReadAsStreamAsync().Result);
-            var tag = xml.GetElementsByTagName("user");
-            if(tag.Count == 0)
-                throw new ApiRequestException("MAL credential response not understood.");
-            return tag.Item(0)?.FirstChild.Value == "1";
+            return response.Content.ReadAsStringAsync().Result != "Invalid credentials";
         }
 
         /// <summary>
@@ -114,6 +108,9 @@ namespace Trackr.api {
         public async Task<bool> UpdateAnime(Anime anime){
             if(anime.ListStatus == ApiEntry.ListStatuses.NotInList)
                 return RemoveAnime(anime.Id).Result;
+
+            if(anime.ListStatus == ApiEntry.ListStatuses.Completed)
+                anime.CurrentEpisode = anime.Episodes;
 
             var data = new FormUrlEncodedContent(new [] {
                 new KeyValuePair<string, string>("data",
@@ -206,6 +203,12 @@ namespace Trackr.api {
         /// <param name="manga">The manga to update with updated list values</param>
         /// <returns>true on success.</returns>
         public async Task<bool> UpdateManga(Manga manga){
+            if(manga.ListStatus != ApiEntry.ListStatuses.NotInList)
+                return RemoveManga(manga.Id).Result;
+
+            if(manga.ListStatus == ApiEntry.ListStatuses.Completed)
+                manga.CurrentChapter = manga.Chapters;
+
             var data = new FormUrlEncodedContent(new [] {
                 new KeyValuePair<string, string>("data",
                     "<?xml version=\"1.0\" encoding=\"UTF-8\"/>" +
@@ -467,6 +470,11 @@ namespace Trackr.api {
                 default:
                     return ApiEntry.ListStatuses.Current;
             }
+        }
+
+        ~MyAnimeList(){
+            _client.Dispose();
+            _clientLogin = null;
         }
     }
 }

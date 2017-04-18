@@ -1,4 +1,4 @@
-﻿﻿using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -9,7 +9,6 @@ using System.Net.Http.Headers;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml;
-using Trackr.Api;
 
 namespace Trackr.api {
     /// <summary>
@@ -223,6 +222,27 @@ namespace Trackr.api {
             return response.Content.ReadAsStringAsync().Result.Contains("Updated");
         }
 
+        /// <summary>
+        /// Get the authenticated user's manga list.
+        /// </summary>
+        /// <returns>A list of all manga in the user's list</returns>
+        /// <exception cref="ApiFormatException">if the response is malformed.</exception>
+        /// <remarks>Note: The old API used for this method does not contain the synopsis, score, or English fields,
+        /// so they will be left as String.Empty/0.0 until they are requested by the user. This is not resolved right
+        /// away as to limit the number of API calls to MAL.</remarks>
+        public async Task<List<Manga>> PullMangaList(){
+            var response = await _client.GetAsync(OldUrlBase + "?u="+Username+"&status=all&type=manga");
+            XmlDocument xml = new XmlDocument();
+            xml.Load(response.Content.ReadAsStreamAsync().Result);
+            List<Manga> results = new List<Manga>();
+            if (!xml.FirstChild.HasChildNodes) // returns <myanimelist />
+                throw new ApiRequestException("The user's list was not found.");
+            XmlNodeList nl = xml.SelectNodes("/myanimelist/manga");
+            if (nl != null)
+                results.AddRange(from XmlNode n in nl select ToMangaFromOld(n));
+            return results;
+        }
+
         // convert to anime object from node.
         // This only works for the new API (i.e. does not work for user lists)
         private Anime ToAnime(XmlNode node){
@@ -240,7 +260,7 @@ namespace Trackr.api {
                 Anime.RunningStatuses status =
                     ResolveAnimeRunningStatus(node.SelectSingleNode("/entry/status").Value);
                 string startstring = node.SelectSingleNode("/entry/start_date").Value;
-                string endstring = node.SelectSingleNode("/entry/end_date")?.Value;
+                string endstring = node.SelectSingleNode("/entry/end_date").Value;
                 DateTime start = (startstring == DefaultDate)
                     ? DateTime.MinValue
                     : DateTime.ParseExact(startstring, DateFormat, CultureInfo.InvariantCulture);
@@ -265,9 +285,9 @@ namespace Trackr.api {
                 int id = Int32.Parse(node.SelectSingleNode("/anime/series_animedb_id").Value);
                 string title = node.SelectSingleNode("/anime/series_title").Value;
                 string[] synonyms = Regex.Split("; ", node.SelectSingleNode("/anime/series_synonyms").Value);
-                var type = ResolveAnimeTypeFromOld(node.SelectSingleNode("/anime/series_type").Value);
+                var type = ResolveAnimeType(node.SelectSingleNode("/anime/series_type").Value);
                 int episodes = int.Parse(node.SelectSingleNode("/anime/series_episodes").Value);
-                var status = ResolveAnimeRunningStatusFromOld(node.SelectSingleNode("/anime/series_status").Value);
+                var status = ResolveAnimeRunningStatus(node.SelectSingleNode("/anime/series_status").Value);
                 string startstring = node.SelectSingleNode("/anime/series_start").Value;
                 string endstring = node.SelectSingleNode("/anime/series_end").Value;
                 DateTime seriesStart = (startstring == DefaultDate)
@@ -293,9 +313,7 @@ namespace Trackr.api {
                     ? DateTime.MinValue
                     : DateTime.ParseExact(endstring, DateFormat, CultureInfo.InvariantCulture);
                 result.UserScore = int.Parse(node.SelectSingleNode("/anime/my_score").Value);
-                ApiEntry.ListStatuses listStatus;
-                Enum.TryParse(node.SelectSingleNode("/anime/my_status").Value, out listStatus);
-                result.ListStatus = listStatus;
+                result.ListStatus = ResolveListStatus(node.SelectSingleNode("/anime/my_status").Value);
                 return result;
             }
             catch(NullReferenceException) {
@@ -304,15 +322,15 @@ namespace Trackr.api {
         }
         private static Anime.ShowTypes ResolveAnimeType(string type){
             switch (type) {
-                case "Special":
+                case "Special": case "4":
                     return Anime.ShowTypes.Special;
-                case "Movie":
+                case "Movie": case "3":
                     return Anime.ShowTypes.Movie;
-                case "OVA":
+                case "OVA": case "2":
                     return Anime.ShowTypes.Ova;
-                case "ONA":
+                case "ONA": case "5":
                     return Anime.ShowTypes.Ona;
-                case "Music":
+                case "Music": case "6":
                     return Anime.ShowTypes.Music;
                 default:
                     return Anime.ShowTypes.Tv;
@@ -321,40 +339,12 @@ namespace Trackr.api {
 
         private static Anime.RunningStatuses ResolveAnimeRunningStatus(string status){
             switch (status) {
-                case "Finished Airing":
+                case "Finished Airing": case "2":
                     return Anime.RunningStatuses.Completed;
-                case "Currently Airing":
+                case "Currently Airing": case "1":
                     return Anime.RunningStatuses.Airing;
                 default:
                     return Anime.RunningStatuses.NotYetAired;
-            }
-        }
-
-        private static Anime.ShowTypes ResolveAnimeTypeFromOld(string type){
-            switch(type) {
-                case "2":
-                    return Anime.ShowTypes.Ova;
-                case "3":
-                    return Anime.ShowTypes.Movie;
-                case "4":
-                    return Anime.ShowTypes.Special;
-                case "5":
-                    return Anime.ShowTypes.Ona;
-                case "6":
-                    return Anime.ShowTypes.Music;
-                default:
-                    return Anime.ShowTypes.Tv;
-            }
-        }
-
-        private static Anime.RunningStatuses ResolveAnimeRunningStatusFromOld(string status){
-            switch(status) {
-                case "2":
-                    return Anime.RunningStatuses.Completed;
-                case "3":
-                    return Anime.RunningStatuses.NotYetAired;
-                default:
-                    return Anime.RunningStatuses.Airing;
             }
         }
 
@@ -388,21 +378,65 @@ namespace Trackr.api {
                     synopsis, url);
             }
             catch(NullReferenceException) {
-                throw new ApiFormatException("One or more required node was missing from the response");
+                throw new ApiFormatException("One or more required nodes were missing from the response.");
+            }
+        }
+
+        private static Manga ToMangaFromOld(XmlNode node){
+            if(node.Name != "manga")
+                throw new ApiFormatException("The node received was not a manga entry node");
+            if(!node.HasChildNodes)
+                throw new ApiFormatException("The node received contained no information");
+
+            try {
+                int id = int.Parse(node.SelectSingleNode("/manga/series_mangadb_id").Value);
+                string title = node.SelectSingleNode("/manga/series_title").Value;
+                string[] synonyms = Regex.Split(node.SelectSingleNode("/manga/series_synonyms").Value, "; ");
+                Manga.MangaTypes type = ResolveMangaType(node.SelectSingleNode("/manga/series_type").Value);
+                int chapters = int.Parse(node.SelectSingleNode("/manga/series_chapters").Value);
+                int volumes = int.Parse(node.SelectSingleNode("/manga/series_volumes").Value);
+                Manga.RunningStatuses status = ResolveMangaStatus(node.SelectSingleNode("/manga/series_status").Value);
+                string startstring = node.SelectSingleNode("/manga/series_start").Value;
+                string endstring = node.SelectSingleNode("/manga/series_end").Value;
+                DateTime start = (startstring == DefaultDate)
+                    ? DateTime.MinValue
+                    : DateTime.ParseExact(startstring, DateFormat, CultureInfo.InvariantCulture);
+                DateTime end = (endstring == DefaultDate)
+                    ? DateTime.MinValue
+                    : DateTime.ParseExact(endstring, DateFormat, CultureInfo.InvariantCulture);
+                string url = node.SelectSingleNode("/manga/series_image").Value;
+                Manga result = new Manga(id, title, string.Empty, synonyms, chapters, volumes, 0.0, type, status, start,
+                    end, string.Empty, url);
+                result.CurrentChapter = int.Parse(node.SelectSingleNode("/manga/my_read_chapters").Value);
+                result.CurrentVolume = int.Parse(node.SelectSingleNode("/manga/my_read_volumes").Value);
+                startstring = node.SelectSingleNode("/manga/my_start_date").Value;
+                endstring = node.SelectSingleNode("/manga/my_finish_date").Value;
+                result.UserStart = (startstring == DefaultDate)
+                    ? DateTime.MinValue
+                    : DateTime.ParseExact(startstring, DateFormat, CultureInfo.InvariantCulture);
+                result.UserEnd = (startstring == DefaultDate)
+                    ? DateTime.MinValue
+                    : DateTime.ParseExact(endstring, DateFormat, CultureInfo.InvariantCulture);
+                result.UserScore = int.Parse(node.SelectSingleNode("/manga/my_score").Value);
+                result.ListStatus = ResolveListStatus(node.SelectSingleNode("/manga/my_status").Value);
+                return result;
+            }
+            catch(NullReferenceException) {
+                throw new ApiFormatException("One or more required nodes were missing from the response.");
             }
         }
 
         private static Manga.MangaTypes ResolveMangaType(string type){
             switch(type) {
-                case "One-Shot":
+                case "One-Shot": case "3":
                     return Manga.MangaTypes.OneShot;
-                case "Novel":
+                case "Novel": case "2":
                     return Manga.MangaTypes.Novel;
-                case "Manhwa":
+                case "Manhwa": case "5":
                     return Manga.MangaTypes.Manhwa;
-                case "Manhua":
+                case "Manhua": case "6":
                     return Manga.MangaTypes.Manhua;
-                case "Doujinshi":
+                case "Doujinshi": case "4":
                     return Manga.MangaTypes.Doujinshi;
                 default:
                     return Manga.MangaTypes.Manga;
@@ -411,12 +445,27 @@ namespace Trackr.api {
 
         private static Manga.RunningStatuses ResolveMangaStatus(string status){
             switch(status) {
-                case "Finished":
+                case "Finished": case "2":
                     return Manga.RunningStatuses.Finished;
-                case "Not yet published":
+                case "Not yet published": case "3":
                     return Manga.RunningStatuses.NotYetPublished;
                 default:
                     return Manga.RunningStatuses.Publishing;
+            }
+        }
+
+        private static ApiEntry.ListStatuses ResolveListStatus(string status){
+            switch(status) {
+                case "2":
+                    return ApiEntry.ListStatuses.Completed;
+                case "3":
+                    return ApiEntry.ListStatuses.OnHold;
+                case "4":
+                    return ApiEntry.ListStatuses.Dropped;
+                case "5":
+                    return ApiEntry.ListStatuses.Planned;
+                default:
+                    return ApiEntry.ListStatuses.Current;
             }
         }
     }

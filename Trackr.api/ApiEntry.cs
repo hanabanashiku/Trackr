@@ -75,6 +75,6 @@ namespace Trackr.api {
         }
 
         public Image Cover => Image.FromFile(ImageUrl);
-            protected int _userScore;
+        protected int _userScore;
         }
 }

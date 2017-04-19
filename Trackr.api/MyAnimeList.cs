@@ -24,9 +24,10 @@ namespace Trackr.api {
         /// </summary>
         public new string Username { get; }
 
-        private const string UrlBase = "http://myanimelist.net/api/";
-        private const string OldUrlBase = "http://myanimelist.net/malappinfo.php";
+        private const string UrlBase = "https://myanimelist.net/api/";
+        private const string OldUrlBase = "https://myanimelist.net/malappinfo.php";
         private const string DateFormat = "yyyy-MM-dd";
+        private const string DateRequestFormat = "MMddyyyy";
         private const string DefaultDate = "0000-00-00";
 
         private readonly HttpClient _client;
@@ -40,7 +41,7 @@ namespace Trackr.api {
             _clientLogin = credentials;
             _client = new HttpClient();
             _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", _clientLogin.Credentials);
-            _client.DefaultRequestHeaders.Add("User-Agent", UserAgent);
+            //_client.DefaultRequestHeaders.Add("User-Agent", UserAgent);
             Username = _clientLogin.Username;
         }
 
@@ -62,15 +63,17 @@ namespace Trackr.api {
         /// <returns>true on success (201), false on failure (400).</returns>
         public async Task<bool> AddAnime(int id, ApiEntry.ListStatuses listStatus = ApiEntry.ListStatuses.Current){
             var data = new FormUrlEncodedContent(new [] {
-                new KeyValuePair<string, string>("data,",
-                   "<?xml version \"1.0\" encoding=\"UTF-8\"?>" +
+                new KeyValuePair<string, string>("data",
+                   "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
                    "<entry>" +
                    "<episode>0</episode>" +
                    "<status>" + (int)listStatus + "</status>" +
                    "</entry>")
             });
-            var reponse = await _client.PostAsync(Path.Combine(UrlBase, "animelist", "add", id+".xml"), data);
-            return reponse.StatusCode == HttpStatusCode.Created;
+            var response = await _client.PostAsync(Path.Combine(UrlBase, "animelist", "add", id+".xml"), data);
+            if(response.StatusCode == HttpStatusCode.BadRequest) // the anime is probably already there
+                throw new ApiRequestException(response.Content.ReadAsStringAsync().Result);
+            return response.StatusCode == HttpStatusCode.Created;
         }
 
         /// <summary>
@@ -80,7 +83,7 @@ namespace Trackr.api {
         /// <returns>true on success</returns>
         public async Task<bool> RemoveAnime(int id){
             var response = await _client.DeleteAsync(Path.Combine(UrlBase, "animelist", "delete", id + ".xml"));
-            return response.Content.ReadAsStringAsync().Result.Contains("Deleted");
+            return response.Content.ReadAsStringAsync().Result == "Deleted";
         }
 
         /// <summary>
@@ -112,6 +115,9 @@ namespace Trackr.api {
             if(anime.ListStatus == ApiEntry.ListStatuses.Completed)
                 anime.CurrentEpisode = anime.Episodes;
 
+            string start = (anime.UserStart == DateTime.MinValue) ? DefaultDate : anime.UserStart.ToString(DateRequestFormat);
+            string end = (anime.UserEnd == DateTime.MinValue) ? DefaultDate : anime.UserEnd.ToString(DateRequestFormat);
+
             var data = new FormUrlEncodedContent(new [] {
                 new KeyValuePair<string, string>("data",
                     "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
@@ -119,8 +125,8 @@ namespace Trackr.api {
                         "<episode>" + anime.CurrentEpisode + "</episode>" +
                         "<status>" + (int)anime.ListStatus + "</status>" +
                         "<score>" + anime.UserScore + "</score>" +
-                        "<date_start>" + anime.UserStart.ToString(DateFormat) + "</date_start>" +
-                        "<date_finish>" + anime.UserEnd.ToString(DateFormat) + "</date_finish>" +
+                        "<date_start>" + start + "</date_start>" +
+                        "<date_finish>" + end + "</date_finish>" +
                     "</entry>"),
             });
             var response = await _client.PostAsync(Path.Combine(UrlBase, "animelist", "update", anime.Id + ".xml"),
@@ -141,11 +147,11 @@ namespace Trackr.api {
             XmlDocument xml = new XmlDocument();
             xml.Load(response.Content.ReadAsStreamAsync().Result);
             List<Anime> results = new List<Anime>();
-            if (!xml.FirstChild.HasChildNodes) // returns <myanimelist />
+            XmlNode root = xml.SelectSingleNode("/myanimelist");
+            if (root == null || !root.HasChildNodes) // returns <myanimelist />
                 throw new ApiRequestException("The user's list was not found.");
             XmlNodeList nl = xml.SelectNodes("/myanimelist/anime");
-            if (nl != null)
-                results.AddRange(from XmlNode n in nl select ToAnimeFromOld(n));
+            results.AddRange(from XmlNode n in nl select ToAnimeFromOld(n));
             return results;
         }
 
@@ -165,7 +171,9 @@ namespace Trackr.api {
                     "<status>" + (int)listStatus + "</status>" + 
                 "</entry>")
             });
-            var response = await _client.PostAsync(Path.Combine(UrlBase, "mangalist", id + ".xml"), data);
+            var response = await _client.PostAsync(Path.Combine(UrlBase, "mangalist", "add", id + ".xml"), data);
+            if(response.StatusCode == HttpStatusCode.BadRequest)
+                throw new ApiRequestException(response.Content.ReadAsStringAsync().Result);
             return response.StatusCode == HttpStatusCode.Created;
         }
 
@@ -175,8 +183,8 @@ namespace Trackr.api {
         /// <param name="id">The MAL ID of the manga to remove.</param>
         /// <returns>true on success</returns>
         public async Task<bool> RemoveManga(int id) {
-            var response = await _client.DeleteAsync(Path.Combine(UrlBase, "mangalist", id + ".xml"));
-            return response.Content.ReadAsStringAsync().Result.Contains("Deleted");
+            var response = await _client.DeleteAsync(Path.Combine(UrlBase, "mangalist", "delete", id + ".xml"));
+            return response.Content.ReadAsStringAsync().Result == "Deleted";
         }
 
         /// <summary>
@@ -203,25 +211,29 @@ namespace Trackr.api {
         /// <param name="manga">The manga to update with updated list values</param>
         /// <returns>true on success.</returns>
         public async Task<bool> UpdateManga(Manga manga){
-            if(manga.ListStatus != ApiEntry.ListStatuses.NotInList)
+            Console.WriteLine(manga.Title + " " + manga.ListStatus);
+            if(manga.ListStatus == ApiEntry.ListStatuses.NotInList)
                 return RemoveManga(manga.Id).Result;
-
-            if(manga.ListStatus == ApiEntry.ListStatuses.Completed)
+            if(manga.ListStatus == ApiEntry.ListStatuses.Completed) {
                 manga.CurrentChapter = manga.Chapters;
+            }
 
+            string start = (manga.UserStart == DateTime.MinValue) ? DefaultDate : manga.UserStart.ToString(DateRequestFormat);
+            string end = (manga.UserEnd == DateTime.MinValue) ? DefaultDate : manga.UserEnd.ToString(DateRequestFormat);
             var data = new FormUrlEncodedContent(new [] {
                 new KeyValuePair<string, string>("data",
-                    "<?xml version=\"1.0\" encoding=\"UTF-8\"/>" +
+                    "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
                     "<entry>" +
                         "<chapter>" + manga.CurrentChapter + "</chapter>" +
                         "<volume>" + manga.CurrentVolume + "</volume>" +
                         "<status>" + (int)manga.ListStatus + "</status>" +
-                        "<date_start>" + manga.UserStart.ToString(DateFormat) + "</date_start>" +
-                        "<date_finish>" + manga.UserEnd.ToString(DateFormat) + "</date_finish>" +
-                        "<scan_group>" + manga.ScanGroup + "</scan_group>" +
+                        "<score>" + manga.UserScore + "</score>" +
+                        "<date_start>" + start + "</date_start>" +
+                        "<date_finish>" + end + "</date_finish>" +
                     "</entry>"),
             });
             var response = await _client.PostAsync(Path.Combine(UrlBase, "mangalist", "update", manga.Id + ".xml"), data);
+            Console.WriteLine(response.StatusCode + " " + response.Content.ReadAsStringAsync().Result);
             return response.Content.ReadAsStringAsync().Result.Contains("Updated");
         }
 
@@ -238,7 +250,8 @@ namespace Trackr.api {
             XmlDocument xml = new XmlDocument();
             xml.Load(response.Content.ReadAsStreamAsync().Result);
             List<Manga> results = new List<Manga>();
-            if (!xml.FirstChild.HasChildNodes) // returns <myanimelist />
+            XmlNode root = xml.SelectSingleNode("/myanimelist");
+            if (root == null || !root.HasChildNodes) // returns <myanimelist />
                 throw new ApiRequestException("The user's list was not found.");
             XmlNodeList nl = xml.SelectNodes("/myanimelist/manga");
             if (nl != null)
@@ -248,75 +261,78 @@ namespace Trackr.api {
 
         // convert to anime object from node.
         // This only works for the new API (i.e. does not work for user lists)
-        private Anime ToAnime(XmlNode node){
+        private static Anime ToAnime(XmlNode node){
             if(node.Name != "entry") throw new ApiFormatException("The node is not an entry node.");
             if(!node.HasChildNodes) throw new ApiFormatException("The node has no information.");
-
             try {
-                int id = int.Parse(node.SelectSingleNode("/entry/id").Value);
-                string title = node.SelectSingleNode("/entry/title").Value;
-                string english = node.SelectSingleNode("/entry/english").Value;
-                string[] synonyms = Regex.Split(node.SelectSingleNode("/entry/synonyms").Value, "; ");
-                int episodes = Int32.Parse(node.SelectSingleNode("/entry/episodes").Value);
-                double score = Double.Parse(node.SelectSingleNode("/entry/score").Value);
-                Anime.ShowTypes type = ResolveAnimeType(node.SelectSingleNode("/entry/type").Value);
+                int id = int.Parse(node.SelectSingleNode(".//id/text()").Value);
+                string title = node.SelectSingleNode(".//title/text()").Value;
+                var englishnode = node.SelectSingleNode(".//english/text()");
+                string english = (englishnode == null) ? string.Empty : englishnode.Value;
+                XmlNode synonymnode = node.SelectSingleNode(".//synonyms/text()");
+                var synonyms = synonymnode == null ? new string[0] : Regex.Split(synonymnode.Value, "; ");
+                int episodes = int.Parse(node.SelectSingleNode(".//episodes/text()").Value);
+                double score = double.Parse(node.SelectSingleNode(".//score/text()").Value);
+                Anime.ShowTypes type = ResolveAnimeType(node.SelectSingleNode(".//type/text()").Value);
                 Anime.RunningStatuses status =
-                    ResolveAnimeRunningStatus(node.SelectSingleNode("/entry/status").Value);
-                string startstring = node.SelectSingleNode("/entry/start_date").Value;
-                string endstring = node.SelectSingleNode("/entry/end_date").Value;
+                    ResolveAnimeRunningStatus(node.SelectSingleNode(".//status/text()").Value);
+                string startstring = node.SelectSingleNode(".//start_date/text()").Value;
+                string endstring = node.SelectSingleNode(".//end_date/text()").Value;
                 DateTime start = (startstring == DefaultDate)
                     ? DateTime.MinValue
                     : DateTime.ParseExact(startstring, DateFormat, CultureInfo.InvariantCulture);
                 DateTime end = (endstring == DefaultDate)
                     ? DateTime.MinValue
                     : DateTime.ParseExact(endstring, DateFormat, CultureInfo.InvariantCulture);
-                string synopsis = node.SelectSingleNode("/entry/synopsis").Value;
-                string url = node.SelectSingleNode("/entry/image").Value;
+                var synopsisnode = node.SelectSingleNode(".//synopsis/text()");
+                string synopsis = (synopsisnode == null) ? string.Empty : synopsisnode.Value;                var urlnode = node.SelectSingleNode(".//image/text()");
+                string url = (urlnode == null) ? string.Empty : urlnode.Value;
                 return new Anime(id, title, english, synonyms, episodes, score, type, status, start, end, synopsis,
                     url);
             }
-            catch(NullReferenceException) {
+            catch(NullReferenceException e) {
                 throw new ApiFormatException("The node was missing a required value.");
             }
         }
 
         // convert a node from an old API call into an Anime object
-        private Anime ToAnimeFromOld(XmlNode node){
+        private static Anime ToAnimeFromOld(XmlNode node){
             if(node.Name != "anime") throw new ApiFormatException("The node is not an anime node");
             if(!node.HasChildNodes) throw new ApiFormatException("The anime node has no information");
             try {
-                int id = Int32.Parse(node.SelectSingleNode("/anime/series_animedb_id").Value);
-                string title = node.SelectSingleNode("/anime/series_title").Value;
-                string[] synonyms = Regex.Split("; ", node.SelectSingleNode("/anime/series_synonyms").Value);
-                var type = ResolveAnimeType(node.SelectSingleNode("/anime/series_type").Value);
-                int episodes = int.Parse(node.SelectSingleNode("/anime/series_episodes").Value);
-                var status = ResolveAnimeRunningStatus(node.SelectSingleNode("/anime/series_status").Value);
-                string startstring = node.SelectSingleNode("/anime/series_start").Value;
-                string endstring = node.SelectSingleNode("/anime/series_end").Value;
+                int id = int.Parse(node.SelectSingleNode(".//series_animedb_id//text()").Value);
+                string title = node.SelectSingleNode(".//series_title/text()").Value;
+                var synonymnode = node.SelectSingleNode(".//series_synonyms/text()");
+                var synonyms = synonymnode == null ? new string[0] : Regex.Split(synonymnode.Value, "; ");
+                var type = ResolveAnimeType(node.SelectSingleNode(".//series_type/text()").Value);
+                int episodes = int.Parse(node.SelectSingleNode(".//series_episodes/text()").Value);
+                var status = ResolveAnimeRunningStatus(node.SelectSingleNode(".//series_status/text()").Value);
+                string startstring = node.SelectSingleNode(".//series_start/text()").Value;
+                string endstring = node.SelectSingleNode(".//series_end/text()").Value;
                 DateTime seriesStart = (startstring == DefaultDate)
                     ? DateTime.MinValue
-                    : DateTime.ParseExact(startstring, DateFormat, CultureInfo.InvariantCulture);
-                DateTime seriesEnd = (startstring == DefaultDate)
+                    : DateTime.ParseExact(startstring.Replace("00", "01"), DateFormat, CultureInfo.InvariantCulture);
+                DateTime seriesEnd = (endstring == DefaultDate)
                     ? DateTime.MinValue
-                    : DateTime.ParseExact(startstring, DateFormat, CultureInfo.InvariantCulture);
-                string url = node.SelectSingleNode("/anime/series_image").Value;
+                    : DateTime.ParseExact(endstring.Replace("00", "01"), DateFormat, CultureInfo.InvariantCulture);
+                string url = node.SelectSingleNode(".//series_image/text()").Value;
                 Anime result = new Anime(
                     id, title, string.Empty, synonyms, episodes, 0.0, type, status, seriesStart, seriesEnd,
                     string.Empty, url) {
-                    CurrentEpisode = int.Parse(node.SelectSingleNode("/anime/my_watched_episodes").Value)
+                    CurrentEpisode = int.Parse(node.SelectSingleNode(".//my_watched_episodes/text()").Value)
                 };
 
                 // User information
-                startstring = node.SelectSingleNode("/anime/my_start_date").Value;
-                endstring = node.SelectSingleNode("/anime/my_end_date").Value;
+                startstring = node.SelectSingleNode(".//my_start_date/text()").Value;
+                endstring = node.SelectSingleNode(".//my_finish_date/text()").Value;
                 result.UserStart = (startstring == DefaultDate)
                     ? DateTime.MinValue
                     : DateTime.ParseExact(startstring, DateFormat, CultureInfo.InvariantCulture);
                 result.UserEnd = (endstring == DefaultDate)
                     ? DateTime.MinValue
                     : DateTime.ParseExact(endstring, DateFormat, CultureInfo.InvariantCulture);
-                result.UserScore = int.Parse(node.SelectSingleNode("/anime/my_score").Value);
-                result.ListStatus = ResolveListStatus(node.SelectSingleNode("/anime/my_status").Value);
+                result.UserScore = int.Parse(node.SelectSingleNode(".//my_score/text()").Value);
+                result.ListStatus = ResolveListStatus(node.SelectSingleNode(".//my_status/text()").Value);
                 return result;
             }
             catch(NullReferenceException) {
@@ -358,25 +374,29 @@ namespace Trackr.api {
                 throw new ApiFormatException("The node received contained no information");
 
             try {
-                int id = int.Parse(node.SelectSingleNode("/entry/id").Value);
-                string title = node.SelectSingleNode("/entry/title").Value;
-                string english = node.SelectSingleNode("/entry/english").Value;
-                string[] synonyms = Regex.Split(node.SelectSingleNode("/entry/synonyms").Value, "; ");
-                int chapters = int.Parse(node.SelectSingleNode("/entry/chapters").Value);
-                int volumes = int.Parse(node.SelectSingleNode("/entry/volumes").Value);
-                double score = double.Parse(node.SelectSingleNode("/entry/score").Value);
-                Manga.MangaTypes type = ResolveMangaType(node.SelectSingleNode("/entry/type").Value);
-                Manga.RunningStatuses status = ResolveMangaStatus(node.SelectSingleNode("/entry/status").Value);
-                string startstring = node.SelectSingleNode("/entry/start_date").Value;
-                string endstring = node.SelectSingleNode("/entry/end_date").Value;
+                int id = int.Parse(node.SelectSingleNode(".//id/text()").Value);
+                string title = node.SelectSingleNode(".//title/text()").Value;
+                var englishnode = node.SelectSingleNode(".//english/text()");
+                string english = (englishnode == null) ? string.Empty : englishnode.Value;
+                var synonymnode = node.SelectSingleNode(".//synonyms/text()");
+                var synonyms = synonymnode == null ? new string[0] : Regex.Split(synonymnode.Value, "; ");
+                int chapters = int.Parse(node.SelectSingleNode(".//chapters/text()").Value);
+                int volumes = int.Parse(node.SelectSingleNode(".//volumes/text()").Value);
+                double score = double.Parse(node.SelectSingleNode(".//score/text()").Value);
+                Manga.MangaTypes type = ResolveMangaType(node.SelectSingleNode(".//type/text()").Value);
+                Manga.RunningStatuses status = ResolveMangaStatus(node.SelectSingleNode(".//status/text()").Value);
+                string startstring = node.SelectSingleNode(".//start_date/text()").Value;
+                string endstring = node.SelectSingleNode(".//end_date/text()").Value;
                 DateTime start = (startstring == DefaultDate)
                     ? DateTime.MinValue
-                    : DateTime.ParseExact(startstring, DateFormat, CultureInfo.InvariantCulture);
+                    : DateTime.ParseExact(startstring.Replace("00", "01"), DateFormat, CultureInfo.InvariantCulture);
                 DateTime end = (endstring == DefaultDate)
                     ? DateTime.MinValue
-                    : DateTime.ParseExact(endstring, DateFormat, CultureInfo.InvariantCulture);
-                string synopsis = node.SelectSingleNode("/entry/synopsis").Value;
-                string url = node.SelectSingleNode("/entry/image").Value;
+                    : DateTime.ParseExact(endstring.Replace("00", "01"), DateFormat, CultureInfo.InvariantCulture);
+                var synopsisnode = node.SelectSingleNode(".//synopsis/text()");
+                string synopsis = (synopsisnode == null) ? string.Empty : synopsisnode.Value;
+                var urlnode = node.SelectSingleNode(".//image/text()");
+                string url = (urlnode == null) ? string.Empty : urlnode.Value;
                 return new Manga(id, title, english, synonyms, chapters, volumes, score, type, status, start, end,
                     synopsis, url);
             }
@@ -392,36 +412,37 @@ namespace Trackr.api {
                 throw new ApiFormatException("The node received contained no information");
 
             try {
-                int id = int.Parse(node.SelectSingleNode("/manga/series_mangadb_id").Value);
-                string title = node.SelectSingleNode("/manga/series_title").Value;
-                string[] synonyms = Regex.Split(node.SelectSingleNode("/manga/series_synonyms").Value, "; ");
-                Manga.MangaTypes type = ResolveMangaType(node.SelectSingleNode("/manga/series_type").Value);
-                int chapters = int.Parse(node.SelectSingleNode("/manga/series_chapters").Value);
-                int volumes = int.Parse(node.SelectSingleNode("/manga/series_volumes").Value);
-                Manga.RunningStatuses status = ResolveMangaStatus(node.SelectSingleNode("/manga/series_status").Value);
-                string startstring = node.SelectSingleNode("/manga/series_start").Value;
-                string endstring = node.SelectSingleNode("/manga/series_end").Value;
+                int id = int.Parse(node.SelectSingleNode(".//series_mangadb_id/text()").Value);
+                string title = node.SelectSingleNode(".//series_title/text()").Value;
+                var synonymnode = node.SelectSingleNode(".//series_synonyms/text()");
+                var synonyms = synonymnode == null ? new string[0] : Regex.Split(synonymnode.Value, "; ");
+                Manga.MangaTypes type = ResolveMangaType(node.SelectSingleNode(".//series_type/text()").Value);
+                int chapters = int.Parse(node.SelectSingleNode(".//series_chapters/text()").Value);
+                int volumes = int.Parse(node.SelectSingleNode(".//series_volumes/text()").Value);
+                Manga.RunningStatuses status = ResolveMangaStatus(node.SelectSingleNode(".//series_status/text()").Value);
+                string startstring = node.SelectSingleNode(".//series_start/text()").Value;
+                string endstring = node.SelectSingleNode(".//series_end/text()").Value;
                 DateTime start = (startstring == DefaultDate)
                     ? DateTime.MinValue
-                    : DateTime.ParseExact(startstring, DateFormat, CultureInfo.InvariantCulture);
+                    : DateTime.ParseExact(startstring.Replace("00", "01"), DateFormat, CultureInfo.InvariantCulture);
                 DateTime end = (endstring == DefaultDate)
                     ? DateTime.MinValue
-                    : DateTime.ParseExact(endstring, DateFormat, CultureInfo.InvariantCulture);
-                string url = node.SelectSingleNode("/manga/series_image").Value;
+                    : DateTime.ParseExact(endstring.Replace("00", "01"), DateFormat, CultureInfo.InvariantCulture);
+                string url = node.SelectSingleNode(".//series_image/text()").Value;
                 Manga result = new Manga(id, title, string.Empty, synonyms, chapters, volumes, 0.0, type, status, start,
                     end, string.Empty, url);
-                result.CurrentChapter = int.Parse(node.SelectSingleNode("/manga/my_read_chapters").Value);
-                result.CurrentVolume = int.Parse(node.SelectSingleNode("/manga/my_read_volumes").Value);
-                startstring = node.SelectSingleNode("/manga/my_start_date").Value;
-                endstring = node.SelectSingleNode("/manga/my_finish_date").Value;
+                result.CurrentChapter = int.Parse(node.SelectSingleNode(".//my_read_chapters/text()").Value);
+                result.CurrentVolume = int.Parse(node.SelectSingleNode(".//my_read_volumes/text()").Value);
+                startstring = node.SelectSingleNode(".//my_start_date/text()").Value;
+                endstring = node.SelectSingleNode(".//my_finish_date/text()").Value;
                 result.UserStart = (startstring == DefaultDate)
                     ? DateTime.MinValue
-                    : DateTime.ParseExact(startstring, DateFormat, CultureInfo.InvariantCulture);
+                    : DateTime.ParseExact(startstring.Replace("00", "01"), DateFormat, CultureInfo.InvariantCulture);
                 result.UserEnd = (startstring == DefaultDate)
                     ? DateTime.MinValue
-                    : DateTime.ParseExact(endstring, DateFormat, CultureInfo.InvariantCulture);
-                result.UserScore = int.Parse(node.SelectSingleNode("/manga/my_score").Value);
-                result.ListStatus = ResolveListStatus(node.SelectSingleNode("/manga/my_status").Value);
+                    : DateTime.ParseExact(endstring.Replace("00", "01"), DateFormat, CultureInfo.InvariantCulture);
+                result.UserScore = int.Parse(node.SelectSingleNode(".//my_score/text()").Value);
+                result.ListStatus = ResolveListStatus(node.SelectSingleNode(".//my_status/text()").Value);
                 return result;
             }
             catch(NullReferenceException) {
@@ -465,7 +486,7 @@ namespace Trackr.api {
                     return ApiEntry.ListStatuses.OnHold;
                 case "4":
                     return ApiEntry.ListStatuses.Dropped;
-                case "5":
+                case "6":
                     return ApiEntry.ListStatuses.Planned;
                 default:
                     return ApiEntry.ListStatuses.Current;

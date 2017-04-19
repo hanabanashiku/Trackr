@@ -107,13 +107,15 @@ namespace Trackr.Test {
 			Assert.NotNull(academia);
 			Assert.AreEqual(academia.Title, "Boku no Hero Academia");
 			Assert.AreEqual(academia.EnglishTitle, "My Hero Academia");
+		    foreach(string x in academia.Synonyms)
+		        Console.WriteLine(x);
 			Assert.True(academia.Synonyms.Length == 0);
 			Assert.AreEqual(academia.Episodes, 13);
 			Assert.AreEqual(academia.Type, Anime.ShowTypes.Tv);
 			Assert.AreEqual(academia.Status, Anime.RunningStatuses.Completed);
 			Assert.AreEqual(academia.StartDate, new DateTime(2016, 04, 03));
 			Assert.AreEqual(academia.EndDate, new DateTime(2016, 06, 26));
-			Assert.AreEqual(academia.Synopsis, "The appearance of &quot;quirks,&quot; newly discovered super powers, has been steadily increasing over the years, with 80 percent of humanity possessing various abilities from manipulation of elements to shapeshifting. This leaves the remainder of the world completely powerless, and Izuku Midoriya is one such individual.<br /> <br /> Since he was a child, the ambitious middle schooler has wanted nothing more than to be a hero. Izuku&#039;s unfair fate leaves him admiring heroes and taking notes on them whenever he can. But it seems that his persistence has borne some fruit: Izuku meets the number one hero and his personal idol, All Might. All Might&#039;s quirk is a unique ability that can be inherited, and he has chosen Izuku to be his successor!<br /> <br /> Enduring many months of grueling training, Izuku enrolls in UA High, a prestigious high school famous for its excellent hero training program, and this year&#039;s freshmen look especially promising. With his bizarre but talented classmates and the looming threat of a villainous organization, Izuku will soon learn what it really means to be a hero.<br /> <br /> [Written by MAL Rewrite]");
+			Assert.AreEqual(academia.Synopsis, "The appearance of &quot;quirks,&quot; newly discovered super powers, has been steadily increasing over the years, with 80 percent of humanity possessing various abilities from manipulation of elements to shapeshifting. This leaves the remainder of the world completely powerless, and Izuku Midoriya is one such individual.<br />\r\n<br />\r\nSince he was a child, the ambitious middle schooler has wanted nothing more than to be a hero. Izuku&#039;s unfair fate leaves him admiring heroes and taking notes on them whenever he can. But it seems that his persistence has borne some fruit: Izuku meets the number one hero and his personal idol, All Might. All Might&#039;s quirk is a unique ability that can be inherited, and he has chosen Izuku to be his successor!<br />\r\n<br />\r\nEnduring many months of grueling training, Izuku enrolls in UA High, a prestigious high school famous for its excellent hero training program, and this year&#039;s freshmen look especially promising. With his bizarre but talented classmates and the looming threat of a villainous organization, Izuku will soon learn what it really means to be a hero.<br />\r\n<br />\r\n[Written by MAL Rewrite]");
 		}
 
 		[Test]
@@ -162,7 +164,7 @@ namespace Trackr.Test {
 			manga = _mal.PullMangaList().Result;
 			souleater = manga.First(x => x.Id == 908);
 			Assert.AreEqual(souleater.ListStatus, ApiEntry.ListStatuses.Completed);
-			Assert.AreEqual(souleater.UserStart, souleater.StartDate);
+		    Assert.AreEqual(souleater.UserStart, souleater.StartDate);
 			Assert.AreEqual(souleater.UserEnd, DateTime.Today);
 			Assert.AreEqual(souleater.UserScore, 10);
 			Assert.AreEqual(souleater.CurrentChapter, souleater.Chapters);
@@ -194,8 +196,8 @@ namespace Trackr.Test {
 			Assert.AreEqual(yotsuba.Synonyms, new [] { "Yotsuba and!" });
 			Assert.AreEqual(yotsuba.Chapters, 0);
 			Assert.AreEqual(yotsuba.Volumes, 0);
-			Assert.Equals(yotsuba.Type, Manga.MangaTypes.Manga);
-			Assert.Equals(yotsuba.Status, Manga.RunningStatuses.Publishing);
+			Assert.AreEqual(yotsuba.Type, Manga.MangaTypes.Manga);
+			Assert.AreEqual(yotsuba.Status, Manga.RunningStatuses.Publishing);
 			Assert.AreEqual(yotsuba.StartDate, new DateTime(2003, 03, 21));
 		}
 

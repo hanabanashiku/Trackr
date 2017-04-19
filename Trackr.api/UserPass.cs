@@ -82,7 +82,7 @@ namespace Trackr.api {
         /// <summary>
         /// Returns the username and password in a curl-readable format
         /// </summary>
-        public string Credentials => Username + ":" + Password;
+        public string Credentials => Convert.ToBase64String(Encoding.UTF8.GetBytes(Username + ":" + Password));
 
         /// <summary>
         /// Create a new username/password combination

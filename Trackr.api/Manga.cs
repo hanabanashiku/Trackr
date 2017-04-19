@@ -59,11 +59,6 @@ namespace Trackr.api{
         /// </summary>
         public int CurrentVolume { get; set; }
 
-        /// <summary>
-        /// The scan group that distributed the manga scans.
-        /// </summary>
-        public string ScanGroup { get; set; } = string.Empty;
-
         internal Manga(int id, string title, string english,
             string[] synonyms, int chapters, int volumes, double score,
             MangaTypes type, RunningStatuses status,

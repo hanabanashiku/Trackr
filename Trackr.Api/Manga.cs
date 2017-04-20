@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Trackr.api{
+namespace Trackr.Api{
     /// <summary>
     /// Represents a manga item from an API call
     /// </summary>

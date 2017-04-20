@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace Trackr.api {
+namespace Trackr.Api {
     /// <summary>
     /// Represents an anime API client
     /// </summary>

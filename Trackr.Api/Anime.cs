@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Trackr.api {
+namespace Trackr.Api {
     /// <summary>
     /// Reperesents an anime item from an API call
     /// </summary>

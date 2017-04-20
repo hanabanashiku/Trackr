@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Trackr.api {
+namespace Trackr.Api {
     /// <summary>
     /// A base class from which all API handles are derived.
     /// </summary>

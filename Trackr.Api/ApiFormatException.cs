@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Trackr.api {
+namespace Trackr.Api {
     /// <summary>
     /// The API call's response was malformed.
     /// </summary>

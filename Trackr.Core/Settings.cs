@@ -3,7 +3,7 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Xml.Serialization;
 
-namespace Trackr.core {
+namespace Trackr.Core {
     [Serializable]
     public class Settings {
         public byte[] Entropy { get; }

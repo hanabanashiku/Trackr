@@ -10,7 +10,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml;
 
-namespace Trackr.api {
+namespace Trackr.Api {
     /// <summary>
     /// A class for handling instances of MyAnimeList accounts
     /// </summary>

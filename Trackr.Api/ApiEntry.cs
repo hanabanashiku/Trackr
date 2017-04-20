@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Drawing;
 
-namespace Trackr.api {
+namespace Trackr.Api {
     /// <summary>
     /// Represents an item result from an API call
     /// </summary>

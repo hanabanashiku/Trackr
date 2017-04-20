@@ -1,4 +1,4 @@
-﻿namespace Trackr.core {
+﻿namespace Trackr.Core {
     public class Program {
         public static Settings UserSettings;
 

@@ -2,8 +2,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
-using Trackr.api;
-using Trackr.core;
+using Trackr.Api;
+using Trackr.Core;
 
 namespace Trackr.Test {
 	[TestFixture]

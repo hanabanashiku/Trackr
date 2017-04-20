@@ -3,9 +3,9 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
-using Trackr.core;
+using Trackr.Core;
 
-namespace Trackr.api {
+namespace Trackr.Api {
     /// <summary>
     /// A class for securly storing usernames and passwords for various API calls.
     /// </summary>

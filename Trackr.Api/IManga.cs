@@ -6,6 +6,8 @@ namespace Trackr.Api {
     /// Represents a manga API client.
     /// </summary>
     public interface IManga {
+        string Name { get; }
+        string Username { get; }
 
         Task<bool> VerifyCredentials();
         Task<bool> AddManga(int id, ApiEntry.ListStatuses listStatus);

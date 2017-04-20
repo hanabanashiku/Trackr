@@ -1,4 +1,4 @@
-﻿﻿using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -18,7 +18,7 @@ namespace Trackr.Api {
         /// <summary>
         /// The name of the current API.
         /// </summary>
-        public new static string Name { get; } = "MyAnimeList";
+        public new string Name { get; } = "MyAnimeList";
         /// <summary>
         /// The username of the user logged into the API.
         /// </summary>
@@ -61,6 +61,7 @@ namespace Trackr.Api {
         /// <param name="id">The MAL ID number of the given anime</param>
         /// <param name="listStatus">The listStatus to add it under (default is Currently Watching)</param>
         /// <returns>true on success (201), false on failure (400).</returns>
+        /// <exception cref="ApiRequestException">If the anime already exists in the user's list.</exception>
         public async Task<bool> AddAnime(int id, ApiEntry.ListStatuses listStatus = ApiEntry.ListStatuses.Current){
             var data = new FormUrlEncodedContent(new [] {
                 new KeyValuePair<string, string>("data",
@@ -79,7 +80,7 @@ namespace Trackr.Api {
         /// <summary>
         /// Remove an anime from the authenticated user's list.
         /// </summary>
-        /// <param name="id">The anime to remove</param>
+        /// <param name="id">The MAL ID of the anime to remove</param>
         /// <returns>true on success</returns>
         public async Task<bool> RemoveAnime(int id){
             var response = await _client.DeleteAsync(Path.Combine(UrlBase, "animelist", "delete", id + ".xml"));
@@ -137,7 +138,7 @@ namespace Trackr.Api {
         /// <summary>
         /// Get the authenticated user's anime list.
         /// </summary>
-        /// <returns>A list of all anime in the user's list</returns>
+        /// <returns>A list of all anime in the user's list from the server.</returns>
         /// <exception cref="ApiFormatException">if the response is malformed.</exception>
         /// <remarks>Note: The old API used for this method does not contain the synopsis, score, or English fields,
         /// so they will be left as String.Empty/0.0 until they are requested by the user. This is not resolved right

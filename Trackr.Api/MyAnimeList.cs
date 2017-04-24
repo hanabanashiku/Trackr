@@ -14,6 +14,7 @@ namespace Trackr.Api {
     /// <summary>
     /// A class for handling instances of MyAnimeList accounts
     /// </summary>
+    [Serializable]
     public class MyAnimeList : Api, IAnime, IManga {
         /// <summary>
         /// The name of the current API.
@@ -62,7 +63,9 @@ namespace Trackr.Api {
         /// <param name="listStatus">The listStatus to add it under (default is Currently Watching)</param>
         /// <returns>true on success (201), false on failure (400).</returns>
         /// <exception cref="ApiRequestException">If the anime already exists in the user's list.</exception>
+        /// <exception cref="ArgumentException">If the anime list status is set to be "not in list".</exception>
         public async Task<bool> AddAnime(int id, ApiEntry.ListStatuses listStatus = ApiEntry.ListStatuses.Current){
+            if(listStatus == ApiEntry.ListStatuses.NotInList) throw new ArgumentException("Cannot add a list item that is set to not be in the list");
             var data = new FormUrlEncodedContent(new [] {
                 new KeyValuePair<string, string>("data",
                    "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +

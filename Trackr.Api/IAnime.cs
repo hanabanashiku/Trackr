@@ -1,4 +1,5 @@
-﻿﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Trackr.Api {
@@ -26,6 +27,7 @@ namespace Trackr.Api {
         /// <param name="listStatus">The listStatus to add it under (default is Currently Watching)</param>
         /// <returns>true on success.</returns>
         /// <exception cref="ApiRequestException">If the anime already exists in the user's list.</exception>
+        /// <exception cref="ArgumentException">If the anime list status is set to be "not in list".</exception>
         Task<bool> AddAnime(int id, ApiEntry.ListStatuses listStatus);
         /// <summary>
         /// Remove an anime from the authenticated user's list.

@@ -4,7 +4,7 @@ namespace Trackr.Api {
     /// <summary>
     /// Reperesents an anime item from an API call
     /// </summary>
-    public class Anime : ApiEntry{
+    public class Anime : ApiEntry, IEquatable<Anime>{
 
         /// <summary>
         /// Values representing the running status of the given anime.
@@ -73,6 +73,53 @@ namespace Trackr.Api {
             Status = status;
             Synopsis = synopsis;
             ImageUrl = imageurl;
+        }
+
+        /// <summary>
+        /// Increase the episode count by one.
+        /// </summary>
+        /// <exception cref="IndexOutOfRangeException">If the user has already watched all episodes.</exception>
+        public static Anime operator ++(Anime a){
+            if(a.CurrentEpisode == a.Episodes)
+                throw new IndexOutOfRangeException("The anime doesn't have that many episodes.");
+            a.CurrentEpisode++;
+            return a;
+        }
+        /// <summary>
+        /// Decrease the episode count by one.
+        /// </summary>
+        /// <exception cref="IndexOutOfRangeException">If current episode is set to 0.</exception>
+        public static Anime operator --(Anime a){
+            if(a.CurrentEpisode == 0)
+                throw new IndexOutOfRangeException("The episode count can't be less than 0.");
+            a.CurrentEpisode--;
+            return a;
+        }
+
+        /// <summary>
+        /// Indicates whether the current anime is equal to another anime.
+        /// </summary>
+        /// <param name="anime">An anime to compare with this anime.</param>
+        /// <returns>true if the current object is equal to the other paramater; otherwise, false.</returns>
+        /// <remarks>This is used to check for anime by ID number, and does not consider user values.</remarks>
+        public bool Equals(Anime anime){
+            return anime != null && this.Id == anime.Id;
+        }
+
+        /// <remarks>
+        /// This is used to check for user values.
+        /// </remarks>
+        public static bool operator ==(Anime a, Anime b){
+            if(a == null || b == null) return false;
+            if(a.Id != b.Id) return false;
+            if(a.ListStatus != b.ListStatus) return false;
+            if(a.CurrentEpisode != b.CurrentEpisode) return false;
+            if(a.UserScore != b.UserScore) return false;
+            if(a.UserStart != b.UserStart) return false;
+            return !(a.UserEnd != b.UserEnd);
+        }
+        public static bool operator !=(Anime a, Anime b){
+            return !(a == b);
         }
     }
 }

@@ -50,9 +50,11 @@ namespace Trackr.Api {
         /// Verify provided credentials with MyAnimeList.
         /// </summary>
         /// <returns>true if credentials are valid</returns>
-        /// <exception cref="ApiRequestException" />
+        /// <exception cref="ApiFormatException">if the request times out.</exception>
         public async Task<bool> VerifyCredentials(){
             var response = await _client.GetAsync(Path.Combine(UrlBase, "account", "verify_credentials.xml"));
+            if(response.StatusCode == HttpStatusCode.RequestTimeout)
+                throw new ApiRequestException("The request timed out.");
             return response.Content.ReadAsStringAsync().Result != "Invalid credentials";
         }
 
@@ -62,8 +64,8 @@ namespace Trackr.Api {
         /// <param name="id">The MAL ID number of the given anime</param>
         /// <param name="listStatus">The listStatus to add it under (default is Currently Watching)</param>
         /// <returns>true on success (201), false on failure (400).</returns>
-        /// <exception cref="ApiRequestException">If the anime already exists in the user's list.</exception>
         /// <exception cref="ArgumentException">If the anime list status is set to be "not in list".</exception>
+        /// <exception cref="ApiFormatException">if the request times out.</exception>
         public async Task<bool> AddAnime(int id, ApiEntry.ListStatuses listStatus = ApiEntry.ListStatuses.Current){
             if(listStatus == ApiEntry.ListStatuses.NotInList) throw new ArgumentException("Cannot add a list item that is set to not be in the list");
             var data = new FormUrlEncodedContent(new [] {
@@ -75,8 +77,8 @@ namespace Trackr.Api {
                    "</entry>")
             });
             var response = await _client.PostAsync(Path.Combine(UrlBase, "animelist", "add", id+".xml"), data);
-            if(response.StatusCode == HttpStatusCode.BadRequest) // the anime is probably already there
-                throw new ApiRequestException(response.Content.ReadAsStringAsync().Result);
+            if(response.StatusCode == HttpStatusCode.RequestTimeout)
+                throw new ApiRequestException("The request timed out.");
             return response.StatusCode == HttpStatusCode.Created;
         }
 
@@ -85,8 +87,11 @@ namespace Trackr.Api {
         /// </summary>
         /// <param name="id">The MAL ID of the anime to remove</param>
         /// <returns>true on success</returns>
+        /// <exception cref="ApiFormatException">if the request times out.</exception>
         public async Task<bool> RemoveAnime(int id){
             var response = await _client.DeleteAsync(Path.Combine(UrlBase, "animelist", "delete", id + ".xml"));
+            if(response.StatusCode == HttpStatusCode.RequestTimeout)
+                throw new ApiRequestException("The request timed out.");
             return response.Content.ReadAsStringAsync().Result == "Deleted";
         }
 
@@ -95,10 +100,12 @@ namespace Trackr.Api {
         /// </summary>
         /// <param name="keywords">The search term to use</param>
         /// <returns>A list of all anime found.</returns>
-        /// <exception cref="ApiFormatException">if the returned node(s) are malformed.</exception>
+        /// <exception cref="ApiFormatException">if the request times out.</exception>
         public async Task<List<Anime>> FindAnime(string keywords){
             List<Anime> results = new List<Anime>();
             var response = await _client.GetAsync(Path.Combine(UrlBase, "anime", "search.xml") + "?q=" + Uri.EscapeDataString(keywords));
+            if(response.StatusCode == HttpStatusCode.RequestTimeout)
+                throw new ApiRequestException("The request timed out.");
             XmlDocument xml = new XmlDocument();
             xml.Load(response.Content.ReadAsStreamAsync().Result);
             XmlNodeList nl = xml.SelectNodes("/anime/entry");
@@ -112,6 +119,7 @@ namespace Trackr.Api {
         /// </summary>
         /// <param name="anime">The anime to update, with updated values.</param>
         /// <returns>true on success</returns>
+        /// <exception cref="ApiFormatException">if the request times out.</exception>
         public async Task<bool> UpdateAnime(Anime anime){
             if(anime.ListStatus == ApiEntry.ListStatuses.NotInList)
                 return RemoveAnime(anime.Id).Result;
@@ -135,6 +143,8 @@ namespace Trackr.Api {
             });
             var response = await _client.PostAsync(Path.Combine(UrlBase, "animelist", "update", anime.Id + ".xml"),
                 data);
+            if(response.StatusCode == HttpStatusCode.RequestTimeout)
+                throw new ApiRequestException("The request timed out.");
             return response.Content.ReadAsStringAsync().Result.Contains("Updated");
         }
 
@@ -142,12 +152,14 @@ namespace Trackr.Api {
         /// Get the authenticated user's anime list.
         /// </summary>
         /// <returns>A list of all anime in the user's list from the server.</returns>
-        /// <exception cref="ApiFormatException">if the response is malformed.</exception>
+        /// <exception cref="ApiFormatException">if the request times out.</exception>
         /// <remarks>Note: The old API used for this method does not contain the synopsis, score, or English fields,
         /// so they will be left as String.Empty/0.0 until they are requested by the user. This is not resolved right
         /// away as to limit the number of API calls to MAL.</remarks>
         public async Task<List<Anime>> PullAnimeList(){
             var response = await _client.GetAsync(OldUrlBase + "?u="+Username+"&status=all&type=anime");
+            if(response.StatusCode == HttpStatusCode.RequestTimeout)
+                throw new ApiRequestException("The request timed out.");
             XmlDocument xml = new XmlDocument();
             xml.Load(response.Content.ReadAsStreamAsync().Result);
             List<Anime> results = new List<Anime>();
@@ -165,6 +177,7 @@ namespace Trackr.Api {
         /// <param name="id">The MAL ID of the given manga.</param>
         /// <param name="listStatus">The list status of the manga (default is currently reading).</param>
         /// <returns>true on success</returns>
+        /// <exception cref="ApiFormatException">if the request times out.</exception>
         public async Task<bool> AddManga(int id, ApiEntry.ListStatuses listStatus = ApiEntry.ListStatuses.Current) {
             var data = new FormUrlEncodedContent(new[] {
                 new KeyValuePair<string, string>("data",
@@ -176,8 +189,8 @@ namespace Trackr.Api {
                 "</entry>")
             });
             var response = await _client.PostAsync(Path.Combine(UrlBase, "mangalist", "add", id + ".xml"), data);
-            if(response.StatusCode == HttpStatusCode.BadRequest)
-                throw new ApiRequestException(response.Content.ReadAsStringAsync().Result);
+            if(response.StatusCode == HttpStatusCode.RequestTimeout)
+                throw new ApiRequestException("The request timed out.");
             return response.StatusCode == HttpStatusCode.Created;
         }
 
@@ -186,6 +199,7 @@ namespace Trackr.Api {
         /// </summary>
         /// <param name="id">The MAL ID of the manga to remove.</param>
         /// <returns>true on success</returns>
+        /// <exception cref="ApiFormatException">if the request times out.</exception>
         public async Task<bool> RemoveManga(int id) {
             var response = await _client.DeleteAsync(Path.Combine(UrlBase, "mangalist", "delete", id + ".xml"));
             return response.Content.ReadAsStringAsync().Result == "Deleted";
@@ -214,6 +228,8 @@ namespace Trackr.Api {
         /// </summary>
         /// <param name="manga">The manga to update with updated list values</param>
         /// <returns>true on success.</returns>
+        /// <exception cref="ApiFormatException">if the request times out.</exception>
+
         public async Task<bool> UpdateManga(Manga manga){
             Console.WriteLine(manga.Title + " " + manga.ListStatus);
             if(manga.ListStatus == ApiEntry.ListStatuses.NotInList)
@@ -245,7 +261,7 @@ namespace Trackr.Api {
         /// Get the authenticated user's manga list.
         /// </summary>
         /// <returns>A list of all manga in the user's list</returns>
-        /// <exception cref="ApiFormatException">if the response is malformed.</exception>
+        /// <exception cref="ApiFormatException">if the request times out.</exception>
         /// <remarks>Note: The old API used for this method does not contain the synopsis, score, or English fields,
         /// so they will be left as String.Empty/0.0 until they are requested by the user. This is not resolved right
         /// away as to limit the number of API calls to MAL.</remarks>

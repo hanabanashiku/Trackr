@@ -41,6 +41,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AnimeList.cs" />
+    <Compile Include="MangaList.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Trackr.Api\Trackr.Api.csproj">

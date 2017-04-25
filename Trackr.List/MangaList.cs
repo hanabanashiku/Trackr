@@ -12,27 +12,26 @@ namespace Trackr.List {
     /// <summary>
     /// A class for managing anime API calls and storing them
     /// </summary>
-    // TODO: Add, remove, update handles.
     [Serializable]
-    public class AnimeList : IEnumerable<Anime> {
+    public class MangaList : IEnumerable<Manga> {
         [NonSerialized]
-        private IAnime _client;
+        private IManga _client;
         /// <summary>
         /// The client this list is using
         /// </summary>
-        public IAnime Client => _client;
+        public IManga Client => _client;
 
-        private List<Anime> _entries;
-        private Queue<Anime> _queue; // these must be synced
+        private List<Manga> _entries;
+        private Queue<Manga> _queue; // these must be synced
 
         private readonly string _filePath;
 
         /// <summary>
         /// Instantiate the anime list
         /// </summary>
-        private AnimeList(){
-            _entries = new List<Anime>();
-            _queue = new Queue<Anime>();
+        private MangaList(){
+            _entries = new List<Manga>();
+            _queue = new Queue<Manga>();
             _filePath = ResolveFilePath(_client);
         }
 
@@ -41,16 +40,16 @@ namespace Trackr.List {
         /// </summary>
         /// <param name="client">The API client to use</param>
         /// <returns></returns>
-        public static AnimeList Load(IAnime client){
+        public static MangaList Load(IManga client){
             try {
                 var f = new BinaryFormatter();
                 var fs = new FileStream(ResolveFilePath(client), FileMode.Open, FileAccess.Read, FileShare.Read);
-                AnimeList list = (AnimeList) f.Deserialize(fs);
+                MangaList list = (MangaList) f.Deserialize(fs);
                 fs.Close();
                 return list;
             }
             catch(Exception) {
-                AnimeList list = new AnimeList {_client = client};
+                MangaList list = new MangaList {_client = client};
                 list.Sync();
                 return list;
             }
@@ -59,33 +58,33 @@ namespace Trackr.List {
         /// <summary>
         /// Add an anime to the list and queue it for syncing.
         /// </summary>
-        /// <param name="a">The anime to add.</param>
+        /// <param name="m">The anime to add.</param>
         /// <remarks>This requires a reference to an object because MAL does not support fetching by ID number in any
         /// concise way. Use Find() to retrieve.</remarks>
-        public void Add(Anime a){
-            if(a.ListStatus == ApiEntry.ListStatuses.NotInList)
-                a.ListStatus = ApiEntry.ListStatuses.Current; // Default value
+        public void Add(Manga m){
+            if(m.ListStatus == ApiEntry.ListStatuses.NotInList)
+                m.ListStatus = ApiEntry.ListStatuses.Current; // Default value
             // ignore if it's already there.
             // through the magic of OOP, references get updated everywhere.
-            if(Contains(a)) return;
-            if(!_queue.Contains(a))
-                _queue.Enqueue(a);
-            _entries.Add(a);
+            if(Contains(m)) return;
+            if(!_queue.Contains(m))
+                _queue.Enqueue(m);
+            _entries.Add(m);
         }
 
-        public void Remove(Anime a){
-            a.ListStatus = ApiEntry.ListStatuses.NotInList;
+        public void Remove(Manga m){
+            m.ListStatus = ApiEntry.ListStatuses.NotInList;
 
-            if(!_queue.Contains(a))
-                _queue.Enqueue(a);
-            _entries.RemoveAll(x => x.Id == a.Id);
+            if(!_queue.Contains(m))
+                _queue.Enqueue(m);
+            _entries.RemoveAll(x => x.Id == m.Id);
         }
 
-        public void Update(Anime a){
-            if(!Contains(a))
-                Add(a);
-            else if(!_queue.Contains(a))
-                _queue.Enqueue(a);
+        public void Update(Manga m){
+            if(!Contains(m))
+                Add(m);
+            else if(!_queue.Contains(m))
+                _queue.Enqueue(m);
         }
 
         /// <summary>
@@ -94,10 +93,10 @@ namespace Trackr.List {
         /// <param name="keywords">The search terms to use</param>
         /// <returns>A list of all anime results.</returns>
         /// <exception cref="ApiFormatException">if the request times out.</exception>
-        public async Task<List<Anime>> Find(string keywords){
-            List<Anime> result = await _client.FindAnime(keywords);
+        public async Task<List<Manga>> Find(string keywords){
+            List<Manga> result = await _client.FindManga(keywords);
             return result.Count == 0 ? result
-                : result.Select(a => Contains(a) ? this[a.Id] : a).ToList();
+                : result.Select(m => Contains(m) ? this[m.Id] : m).ToList();
         }
 
         /// <summary>
@@ -105,18 +104,18 @@ namespace Trackr.List {
         /// </summary>
         /// <exception cref="ApiFormatException">if the request times out.</exception>
         public async void Sync(){
-            var remote = await _client.PullAnimeList();
+            var remote = await _client.PullMangaList();
             // First we update from our sync queue.
             while(_queue.Count != 0) {
-                var a = _queue.Peek();
+                var m = _queue.Peek();
                 // We want to add it and it's not already there
-                if(!remote.Contains(a) && a.ListStatus != ApiEntry.ListStatuses.NotInList)
-                    await _client.AddAnime(a.Id, a.ListStatus);
-                await _client.UpdateAnime(a); // calls RemoveAnime() implicitly if NotInList
+                if(!remote.Contains(m) && m.ListStatus != ApiEntry.ListStatuses.NotInList)
+                    await _client.AddManga(m.Id, m.ListStatus);
+                await _client.UpdateManga(m); // calls RemoveAnime() implicitly if NotInList
                 _queue.Dequeue(); // NOTE: even if it is rejected, it is still being dequeued.
             }
             // Pull again after we have exhausted our sync queue
-            _entries = await _client.PullAnimeList();
+            _entries = await _client.PullMangaList();
         }
 
         /// <summary>
@@ -132,7 +131,7 @@ namespace Trackr.List {
         /// <summary>
         /// Get anime by ID
         /// </summary>
-        public Anime this[int i]{
+        public Manga this[int i]{
             get {
                 try {
                     return _entries.First(x => x.Id == i);
@@ -146,30 +145,30 @@ namespace Trackr.List {
         /// <summary>
         /// Get specific list (watching, planned, etc.)
         /// </summary>
-        public List<Anime> this[ApiEntry.ListStatuses i] {
+        public List<Manga> this[ApiEntry.ListStatuses i] {
             get { return _entries.Where(x => x.ListStatus == i).ToList(); }
         }
 
-        public bool Contains(Anime a){
-            return _entries.Contains(a);
+        public bool Contains(Manga m){
+            return _entries.Contains(m);
         }
         public bool Contains(int id){
             return _entries.Exists(x => x.Id == id);
         }
 
-        public IEnumerator<Anime> GetEnumerator(){
+        public IEnumerator<Manga> GetEnumerator(){
             return _entries.GetEnumerator();
         }
         IEnumerator IEnumerable.GetEnumerator(){
             return GetEnumerator();
         }
 
-        ~AnimeList(){
+        ~MangaList(){
             Save();
         }
 
-        private static string ResolveFilePath(IAnime cli){
-            return Path.Combine(Program.AppDataPath, $"animelist.{cli.Name}.{cli.Username}db");
+        private static string ResolveFilePath(IManga cli){
+            return Path.Combine(Program.AppDataPath, $"mangalist.{cli.Name}.{cli.Username}db");
         }
     }
 }

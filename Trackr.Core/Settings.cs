@@ -2,8 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
-using System.Xml.Serialization;
-using Trackr.Api;
+using System.Runtime.Serialization.Formatters.Binary;
 
 namespace Trackr.Core {
     /// <summary>
@@ -36,9 +35,9 @@ namespace Trackr.Core {
         public static Settings Load(){
             FileStream fs = null;
             try {
-                fs = File.Open(Path, FileMode.Create);
-                var s = new XmlSerializer(typeof(Settings));
-                return (Settings) s.Deserialize(fs);
+                var f = new BinaryFormatter();
+                fs = new FileStream(Path, FileMode.Open);
+                return (Settings) f.Deserialize(fs);
             }
             catch (IOException) {
                 return new Settings();
@@ -53,8 +52,8 @@ namespace Trackr.Core {
         /// </summary>
         public void Save(){
             using (var fs = File.Open(Path, FileMode.Create)) {
-                var s = new XmlSerializer(GetType());
-                s.Serialize(fs, this);
+                var f = new BinaryFormatter();
+                f.Serialize(fs, this);
             }
         }
 

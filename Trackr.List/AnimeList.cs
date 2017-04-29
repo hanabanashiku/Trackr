@@ -12,7 +12,6 @@ namespace Trackr.List {
     /// <summary>
     /// A class for managing anime API calls and storing them
     /// </summary>
-    // TODO: Add, remove, update handles.
     [Serializable]
     public class AnimeList : IEnumerable<Anime> {
         [NonSerialized]
@@ -30,10 +29,11 @@ namespace Trackr.List {
         /// <summary>
         /// Instantiate the anime list
         /// </summary>
-        private AnimeList(){
+        private AnimeList(IAnime client){
             _entries = new List<Anime>();
             _queue = new Queue<Anime>();
-            _filePath = ResolveFilePath(_client);
+            _client = client;
+            _filePath = ResolveFilePath(client);
         }
 
         /// <summary>
@@ -50,8 +50,8 @@ namespace Trackr.List {
                 return list;
             }
             catch(Exception) {
-                AnimeList list = new AnimeList {_client = client};
-                list.Sync();
+                AnimeList list = new AnimeList(client);
+                list.Sync().Wait();
                 return list;
             }
         }
@@ -96,27 +96,29 @@ namespace Trackr.List {
         /// <exception cref="ApiFormatException">if the request times out.</exception>
         public async Task<List<Anime>> Find(string keywords){
             List<Anime> result = await _client.FindAnime(keywords);
-            return result.Count == 0 ? result
-                : result.Select(a => Contains(a) ? this[a.Id] : a).ToList();
+            return result.Select(a => Contains(a) ? this[a.Id] : a).ToList();
         }
 
         /// <summary>
         /// Sync tasks that are currently in the queue.
         /// </summary>
         /// <exception cref="ApiFormatException">if the request times out.</exception>
-        public async void Sync(){
+        public async Task<bool> Sync(){
             var remote = await _client.PullAnimeList();
             // First we update from our sync queue.
             while(_queue.Count != 0) {
-                var a = _queue.Peek();
+                var a = _queue.Dequeue();
                 // We want to add it and it's not already there
-                if(!remote.Contains(a) && a.ListStatus != ApiEntry.ListStatuses.NotInList)
-                    await _client.AddAnime(a.Id, a.ListStatus);
-                await _client.UpdateAnime(a); // calls RemoveAnime() implicitly if NotInList
-                _queue.Dequeue(); // NOTE: even if it is rejected, it is still being dequeued.
+                if(!remote.Contains(a) && a.ListStatus != ApiEntry.ListStatuses.NotInList) {
+                    if(await _client.AddAnime(a.Id, a.ListStatus) == false)
+                        return false;
+                }
+                if(await _client.UpdateAnime(a) == false) // calls RemoveAnime() implicitly if NotInList
+                    return false;
             }
             // Pull again after we have exhausted our sync queue
             _entries = await _client.PullAnimeList();
+            return true;
         }
 
         /// <summary>
@@ -155,6 +157,10 @@ namespace Trackr.List {
         }
         public bool Contains(int id){
             return _entries.Exists(x => x.Id == id);
+        }
+
+        public int Count(){
+            return _entries.Count;
         }
 
         public IEnumerator<Anime> GetEnumerator(){

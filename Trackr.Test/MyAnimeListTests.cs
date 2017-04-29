@@ -13,7 +13,7 @@ namespace Trackr.Test {
 
 	    [TestFixtureSetUp]
 	    public void SetUp(){
-	        Program.Main();
+	        Program.Init();
 			_credentials = new UserPass("trackrtest", "MWhXDyAUQdxa");
 	        Assert.AreEqual(_credentials.Username, "trackrtest");
 	        Assert.AreEqual(_credentials.Password, "MWhXDyAUQdxa");

@@ -64,7 +64,7 @@ namespace Trackr.Api{
             MangaTypes type, RunningStatuses status,
             DateTime start, DateTime end, string synopsis,
             string imageurl) {
-            Id = id;
+            _id = id;
             Title = title;
             EnglishTitle = english;
             Synonyms = synonyms;

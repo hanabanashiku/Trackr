@@ -35,19 +35,7 @@
   <ItemGroup>
     <Compile Include="Program.cs" />
     <Compile Include="Settings.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <Reference Include="System.Data.SQLite, Version=1.0.105.0, Culture=neutral, PublicKeyToken=db937bc2d44ff139">
-      <HintPath>..\packages\System.Data.SQLite.Core.1.0.105.0\lib\net45\System.Data.SQLite.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Xml" />
-    <Reference Include="System.Xml.Serialization" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\Trackr.Api\Trackr.Api.csproj">
-      <Project>{f9b6cbeb-5ba2-4896-838e-1b2e190da74e}</Project>
-      <Name>Trackr.Api</Name>
-    </ProjectReference>
+    <Compile Include="UserPass.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

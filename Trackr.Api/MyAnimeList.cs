@@ -9,6 +9,7 @@ using System.Net.Http.Headers;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml;
+using Trackr.Core;
 
 namespace Trackr.Api {
     /// <summary>
@@ -23,7 +24,7 @@ namespace Trackr.Api {
         /// <summary>
         /// The username of the user logged into the API.
         /// </summary>
-        public new string Username { get; }
+        public new string Username => _clientLogin.Username;
 
         private const string UrlBase = "https://myanimelist.net/api/";
         private const string OldUrlBase = "https://myanimelist.net/malappinfo.php";
@@ -43,7 +44,6 @@ namespace Trackr.Api {
             _client = new HttpClient();
             _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", _clientLogin.Credentials);
             //_client.DefaultRequestHeaders.Add("User-Agent", UserAgent);
-            Username = _clientLogin.Username;
         }
 
         /// <summary>

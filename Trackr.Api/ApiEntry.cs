@@ -40,10 +40,13 @@ namespace Trackr.Api {
         /// A URL pointing to the title's cover image.
         /// </summary>
         public string ImageUrl { get; protected set; }
+
+        protected int _id;
         /// <summary>
         /// The API's internal database ID.
         /// </summary>
-        public int Id { get; protected set; }
+        public int Id => _id;
+
         /// <summary>
         /// The title's user-generated score.
         /// </summary>
@@ -76,5 +79,5 @@ namespace Trackr.Api {
 
         public Image Cover => Image.FromFile(ImageUrl);
         protected int _userScore;
-        }
+    }
 }

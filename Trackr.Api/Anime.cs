@@ -61,7 +61,7 @@ namespace Trackr.Api {
             DateTime start, DateTime end, string synopsis,
             string imageurl){
 
-            Id = id;
+            _id = id;
             Title = title;
             EnglishTitle = english;
             Synonyms = synonyms;
@@ -96,16 +96,6 @@ namespace Trackr.Api {
             return a;
         }
 
-        /// <summary>
-        /// Indicates whether the current anime is equal to another anime.
-        /// </summary>
-        /// <param name="anime">An anime to compare with this anime.</param>
-        /// <returns>true if the current object is equal to the other paramater; otherwise, false.</returns>
-        /// <remarks>This is used to check for anime by ID number, and does not consider user values.</remarks>
-        public bool Equals(Anime anime){
-            return anime != null && this.Id == anime.Id;
-        }
-
         /// <remarks>
         /// This is used to check for user values.
         /// </remarks>
@@ -120,6 +110,27 @@ namespace Trackr.Api {
         }
         public static bool operator !=(Anime a, Anime b){
             return !(a == b);
+        }
+
+        public override bool Equals(object o){
+            var a = o as Anime;
+            return a != null && Equals(a);
+        }
+
+        public new static bool Equals(object a, object b){
+            if(a == null || b == null) return false;
+            if(a.GetType() != typeof(Anime) || b.GetType() != typeof(Anime))
+                return false;
+            return ((Anime) a).Equals((Anime) b);
+        }
+
+        public bool Equals(Anime a){
+            return a != null && a.Id == Id;
+        }
+
+        public override int GetHashCode(){
+            // ReSharper disable once NonReadonlyMemberInGetHashCode
+            return _id.GetHashCode();
         }
     }
 }

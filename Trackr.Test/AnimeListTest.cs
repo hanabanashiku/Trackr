@@ -9,13 +9,11 @@ namespace Trackr.Test {
 		private MyAnimeList _mal;
 		private AnimeList _list;
 
-		[TestFixtureSetUp]
+		[OneTimeSetUp]
 		public void SetUpFirst(){
 			Program.Init();
 			_mal = new MyAnimeList(new UserPass("trackrtest", "MWhXDyAUQdxa"));
 			Assert.True(_mal.VerifyCredentials().Result);
-			Assert.NotNull(_mal.Username);
-			Assert.NotNull(_mal.Name);
 			_list = AnimeList.Load(_mal);
 			TearDown();
 		}

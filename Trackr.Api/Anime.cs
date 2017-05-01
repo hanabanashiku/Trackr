@@ -100,7 +100,7 @@ namespace Trackr.Api {
         /// This is used to check for user values.
         /// </remarks>
         public static bool operator ==(Anime a, Anime b){
-            if(a == null || b == null) return false;
+            if((object)a == null || (object)b == null) return false;
             if(a.Id != b.Id) return false;
             if(a.ListStatus != b.ListStatus) return false;
             if(a.CurrentEpisode != b.CurrentEpisode) return false;

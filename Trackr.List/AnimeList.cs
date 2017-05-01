@@ -126,6 +126,8 @@ namespace Trackr.List {
         /// </summary>
         public void Save(){
             var f = new BinaryFormatter();
+            if (!Directory.Exists(Program.AppDataPath))
+                Directory.CreateDirectory(Program.AppDataPath);
             var fs = new FileStream(_filePath, FileMode.Create, FileAccess.Write, FileShare.None);
             f.Serialize(fs, this);
             fs.Close();

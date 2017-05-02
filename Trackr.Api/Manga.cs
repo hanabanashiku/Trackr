@@ -4,7 +4,7 @@ namespace Trackr.Api{
     /// <summary>
     /// Represents a manga item from an API call
     /// </summary>
-    public class Manga : ApiEntry{
+    public class Manga : ApiEntry, IEquatable<Manga> {
         /// <summary>
         /// Specifies the API-defined manga type
         /// </summary>
@@ -77,6 +77,44 @@ namespace Trackr.Api{
             Status = status;
             Synopsis = synopsis;
             ImageUrl = imageurl;
+        }
+
+        /// <remarks>
+        /// This is used to check for user values.
+        /// </remarks>
+        public static bool operator ==(Manga a, Manga b){
+            if((object)a == null || (object)b == null) return false;
+            if(a.Id != b.Id) return false;
+            if(a.ListStatus != b.ListStatus) return false;
+            if(a.CurrentChapter != b.CurrentChapter) return false;
+            if(a.CurrentVolume != b.CurrentVolume) return false;
+            if(a.UserScore != b.UserScore) return false;
+            if(a.UserStart != b.UserStart) return false;
+            return !(a.UserEnd != b.UserEnd);
+        }
+        public static bool operator !=(Manga a, Manga b){
+            return !(a == b);
+        }
+
+        public override bool Equals(object o){
+            var m = o as Manga;
+            return m != null && Equals(m);
+        }
+
+        public new static bool Equals(object a, object b){
+            if(a == null || b == null) return false;
+            if(a.GetType() != typeof(Manga) || b.GetType() != typeof(Manga))
+                return false;
+            return ((Manga) a).Equals((Manga) b);
+        }
+
+        public bool Equals(Manga m){
+            return m != null && m.Id == Id;
+        }
+
+        public override int GetHashCode(){
+            // ReSharper disable once NonReadonlyMemberInGetHashCode
+            return _id.GetHashCode();
         }
     }
 }

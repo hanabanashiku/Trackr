@@ -10,7 +10,7 @@ using Trackr.Api;
 
 namespace Trackr.List {
     /// <summary>
-    /// A class for managing anime API calls and storing them
+    /// A class for managing manga API calls and storing them
     /// </summary>
     [Serializable]
     public class MangaList : IEnumerable<Manga> {
@@ -56,9 +56,9 @@ namespace Trackr.List {
         }
 
         /// <summary>
-        /// Add an anime to the list and queue it for syncing.
+        /// Add a manga to the list and queue it for syncing.
         /// </summary>
-        /// <param name="m">The anime to add.</param>
+        /// <param name="m">The manga to add.</param>
         /// <remarks>This requires a reference to an object because MAL does not support fetching by ID number in any
         /// concise way. Use Find() to retrieve.</remarks>
         public void Add(Manga m){
@@ -88,7 +88,7 @@ namespace Trackr.List {
         }
 
         /// <summary>
-        /// Returns anime query results with list information included.
+        /// Returns manga query results with list information included.
         /// </summary>
         /// <param name="keywords">The search terms to use</param>
         /// <returns>A list of all anime results.</returns>

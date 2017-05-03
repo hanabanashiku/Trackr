@@ -1,17 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Net.Http;
-using System.Threading.Tasks;
-using System.Json;
 using System.Net;
+using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Json;
+using System.Threading.Tasks;
+
 using Trackr.Core;
 
 namespace Trackr.Api {
     /// <summary>
     /// A class for handling instances of Kitsu (formerly Hummingbird) accounts.
     /// </summary>
+    /// <remarks>This currently uses the undocumented Edge API. The official API is a WIP.</remarks>
     public class Kitsu : Api, IAnime, IManga {
         public new string Name { get; } = "Kitsu";
         public new string Username => _clientLogin.Username;
@@ -21,8 +22,8 @@ namespace Trackr.Api {
         // These are defaults, as app registration is not yet possible on Kitsu
         private const string ClientId = "dd031b32d2f56c990b1425efe6c42ad847e7fe3ab46bf1299f05ecd856bdb7dd";
         private const string ClientSecret = "54d7307928f63414defd96399fc31ba847961ceaecef3a5fd93144e960c0e151";
-        private const string UrlBase = "https://kitsu.io/api/17";
-        private const string Users = UrlBase + "/users";
+        private const string UrlBase = "https://kitsu.io/api/edge";
+        private const string LibraryEntries = UrlBase + "/library-entries";
 
         private readonly HttpClient _client;
         private UserPass _clientLogin;
@@ -50,6 +51,7 @@ namespace Trackr.Api {
             var response = await _client.PostAsync(AuthUrl, data);
             if(response.StatusCode != HttpStatusCode.OK)
                 return false;
+            // store the token in the client and make a note of the expiration time.
             var json = JsonValue.Parse(response.Content.ReadAsStringAsync().Result);
             _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(json["token_type"], json["access_token"]);
             _expiration = DateTime.Now.AddSeconds(double.Parse(json["expires_in"]));
@@ -61,20 +63,25 @@ namespace Trackr.Api {
         /// </summary>
         /// <returns>True on success (200OK), false on failure (400, 401)</returns>
         /// <remarks>Authentication will be done implicitly  after the token expires.</remarks>
+        /// <remarks>This method must be run at least once to resolve the userid of the user.</remarks>
         public async Task<bool> VerifyCredentials(){
             if(await Authenticate() == false)
                 return false;
 
-            // TODO: Get _userId
-            var json = new JsonObject() {
-
-            };
-
-            return true;
+            // some calls require the user's id
+            var response = await _client.GetAsync(UrlBase + $"/users?filter[name]={Username}");
+            var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
+            if(json["data"].Count == 0) return false;
+            foreach(var i in (JsonArray)json["data"])
+                if(i["attributes"]["name"] == Username) {
+                    _userId = i["id"];
+                    return true;
+                }
+            return false;
         }
 
         public async Task<bool> AddAnime(int id, ApiEntry.ListStatuses status){
-            if(DateTime.Now >= _expiration) await Authenticate();
+            AuthenticationCheck();
 
             var data = new JsonObject() {
                 ["data"] = new JsonObject {
@@ -99,7 +106,24 @@ namespace Trackr.Api {
                 }
             };
 
-            var response = await _client.PostAsync(UrlBase, new StringContent(data));
+            var response = await _client.PostAsync(LibraryEntries, new StringContent(data));
+            return response.StatusCode == HttpStatusCode.OK;
+        }
+
+        /// <summary>
+        /// Remove anime from the authenticated user's list
+        /// </summary>
+        /// <param name="id">The ID of the anime to remove.</param>
+        /// <returns>True on success</returns>
+        public async Task<bool> RemoveAnime(int id){
+            AuthenticationCheck();
+
+            int entryId = await GetEntryId(id, "Anime");
+
+            if(entryId == -1) return true; // the entry wasn't there
+            if(entryId == -2) return false; // something went wrong
+
+            var response = await _client.DeleteAsync(LibraryEntries + $"/{entryId}");
             return response.StatusCode == HttpStatusCode.OK;
         }
 
@@ -137,6 +161,23 @@ namespace Trackr.Api {
                 default: // should not be received from the server
                     return ApiEntry.ListStatuses.NotInList;
             }
+        }
+
+        // On Kitsu, each item has a unique entry id. For some operations, we need it.
+        // type is either 'Anime' or 'Manga'
+        private async Task<int> GetEntryId(int entry, string type){
+            var response = await _client.GetAsync(
+                LibraryEntries + $"?filter[user_id]={_userId}&filter[media_type]={type}&filter[media_id]={entry}");
+            if(response.StatusCode != HttpStatusCode.OK) return -2;
+            var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
+            if(json["data"].Count == 0) return -1;
+            else return json["data"][0]["id"];
+        }
+
+        private async void AuthenticationCheck(){
+            if(_userId == 0 && !await VerifyCredentials())
+                throw new ApiRequestException("[Kitsu] Could not verify user credentials");
+            if(DateTime.Now >= _expiration) await Authenticate();
         }
     }
 }

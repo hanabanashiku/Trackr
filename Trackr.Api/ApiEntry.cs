@@ -29,6 +29,10 @@ namespace Trackr.Api {
         /// </summary>
         public string EnglishTitle { get; protected set; }
         /// <summary>
+        /// The Japanese title of the item.
+        /// </summary>
+        public string JapaneseTitle { get; protected set; }
+        /// <summary>
         /// Synonyms of the title.
         /// </summary>
         public string[] Synonyms { get; protected set; }
@@ -55,15 +59,17 @@ namespace Trackr.Api {
         /// <summary>
         /// The title's current status in the user's list.
         /// </summary>
-        public ListStatuses ListStatus { get; set; }
+        public ListStatuses ListStatus { get; set; } = ListStatuses.NotInList;
+
         /// <summary>
         /// The date at which the user first started the title.
         /// </summary>
-        public DateTime UserStart { get; set; }
+        public DateTime UserStart { get; set; } = DateTime.MinValue;
+
         /// <summary>
         /// The date at which the user finished the title.
         /// </summary>
-        public DateTime UserEnd { get; set; }
+        public DateTime UserEnd { get; set; } = DateTime.MinValue;
 
         /// <summary>
         /// The user's personal score of the title.
@@ -78,6 +84,6 @@ namespace Trackr.Api {
         }
 
         public Image Cover => Image.FromFile(ImageUrl);
-        protected int _userScore;
+        protected int _userScore = 0;
     }
 }

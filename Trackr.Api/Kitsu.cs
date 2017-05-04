@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Json;
+using System.Linq;
 using System.Threading.Tasks;
 
 using Trackr.Core;
@@ -24,9 +26,11 @@ namespace Trackr.Api {
         private const string ClientSecret = "54d7307928f63414defd96399fc31ba847961ceaecef3a5fd93144e960c0e151";
         private const string UrlBase = "https://kitsu.io/api/edge";
         private const string LibraryEntries = UrlBase + "/library-entries";
+        private const string AnimeItems = UrlBase + "/anime";
+        private const string DateFormat = "yyyy-MM-dd";
 
         private readonly HttpClient _client;
-        private UserPass _clientLogin;
+        private readonly UserPass _clientLogin;
         private DateTime _expiration;
         private int _userId;
 
@@ -87,7 +91,7 @@ namespace Trackr.Api {
                 ["data"] = new JsonObject {
                     ["type"] = "libraryEntries",
                     ["attributes"] = new JsonObject() {
-                        ["status"] = ListStatusToString(status)
+                        ["status"] = FromListStatus(status)
                     },
                     ["relationships"] = new JsonObject() {
                         ["user"] = new JsonObject() {
@@ -127,7 +131,64 @@ namespace Trackr.Api {
             return response.StatusCode == HttpStatusCode.OK;
         }
 
-        private static string ListStatusToString(ApiEntry.ListStatuses status){
+        /// <summary>
+        /// Search for an anime in the Kitsu database.
+        /// </summary>
+        /// <param name="keywords">The search term to use</param>
+        /// <returns>A list of all results.</returns>
+        /// <exception cref="ApiRequestException">If a request fails.</exception>
+        /// <remarks>Kitsu will only return 20 items at a time, so multiple requests may be sent.</remarks>
+        public async Task<List<Anime>> FindAnime(string keywords){
+            List<Anime> ret = new List<Anime>();
+            string url = AnimeItems + $"?filter%5Btext%5D={keywords}&page%5Blimit%5D=20&page%5Boffset%5D=0";
+            string next = string.Empty;
+            do {
+                if(next != string.Empty) url = next;
+                var response = await _client.GetAsync(url);
+                if(response.StatusCode != HttpStatusCode.OK)
+                    throw new ApiRequestException(response.StatusCode.ToString());
+                var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
+                ret.AddRange(from i in (JsonArray)json["data"] select ToAnime(i));
+                if(json["links"]["next"] == null) return ret;
+                next = json["links"]["next"];
+            } while(true);
+        }
+
+        public async Task<bool> UpdateAnime(Anime a){
+            AuthenticationCheck();
+            throw new NotImplementedException();
+        }
+
+        /// <summary>
+        /// Get the authenticated user's anime list.
+        /// </summary>
+        /// <returns>A list of all anime in the user's list from the server.</returns>
+        /// <exception cref="ApiRequestException">If a request fails.</exception>
+        /// <remarks>Kitsu will only return 500 items at a time, so multiple requests may be sent.</remarks>
+        public async Task<List<Anime>> PullAnimeList(){
+            List<Anime> ret = new List<Anime>();
+            string url = AnimeItems +
+                         $"?filter%5Buser_id%5D={_userId}&filter%5Bmedia_type%5D=Anime&filter%5Bstatus%5D=1,2,3,4,5&include=media&page%5Blimit%5D=500&page%5Boffset%5D=0";
+            string next = string.Empty;
+            do {
+                if(next != string.Empty) url = next;
+                var response = await _client.GetAsync(url);
+                if(response.StatusCode != HttpStatusCode.OK)
+                    throw new ApiRequestException(response.StatusCode.ToString());
+                var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
+                foreach(var i in (JsonArray)json["data"]) {
+                    var a = ToAnime(i["included"][0]);
+                    a.ListStatus = ToListStatus(i["attributes"]["status"]);
+                    a.CurrentEpisode = i["attributes"]["progress"];
+                    a.UserScore = (int)((double)i["attributes"]["rating"])*2; // always 0-5 with half steps.
+                    // Kitsu does not have UserStart/UserEnd items, so the default will be used.
+                }
+                if(json["next"] == null) return ret;
+                next = json["next"];
+            } while(true);
+        }
+
+        private static string FromListStatus(ApiEntry.ListStatuses status){
             // ReSharper disable once SwitchStatementMissingSomeCases
             switch(status) {
                 case ApiEntry.ListStatuses.Completed:
@@ -142,11 +203,11 @@ namespace Trackr.Api {
                     return "on_hold";
                 // NotInList - this should never be sent to the server
                 default:
-                    return string.Empty;
+                    throw new ArgumentOutOfRangeException(nameof(status), status, null);
             }
         }
 
-        private static ApiEntry.ListStatuses StringToListStatus(string status){
+        private static ApiEntry.ListStatuses ToListStatus(string status){
             switch(status) {
                 case "completed":
                     return ApiEntry.ListStatuses.Completed;
@@ -158,8 +219,46 @@ namespace Trackr.Api {
                     return ApiEntry.ListStatuses.Planned;
                 case "on_hold":
                     return ApiEntry.ListStatuses.OnHold;
-                default: // should not be received from the server
-                    return ApiEntry.ListStatuses.NotInList;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(status), status, null);
+            }
+        }
+
+        private static Anime.ShowTypes ToShowType(string type){
+            switch(type) {
+                case "special":
+                    return Anime.ShowTypes.Special;
+                case "OVA":
+                    return Anime.ShowTypes.Ova;
+                case "ONA":
+                    return Anime.ShowTypes.Ona;
+                case "movie":
+                    return Anime.ShowTypes.Movie;
+                case "music":
+                    return Anime.ShowTypes.Music;
+                case "TV":
+                    return Anime.ShowTypes.Tv;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(type), type, null);
+            }
+        }
+
+        private static string FromShowType(Anime.ShowTypes type){
+            switch(type) {
+                case Anime.ShowTypes.Tv:
+                    return "TV";
+                case Anime.ShowTypes.Ova:
+                    return "OVA";
+                case Anime.ShowTypes.Ona:
+                    return "ONA";
+                case Anime.ShowTypes.Movie:
+                    return "movie";
+                case Anime.ShowTypes.Special:
+                    return "special";
+                case Anime.ShowTypes.Music:
+                    return "music";
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(type), type, null);
             }
         }
 
@@ -174,10 +273,42 @@ namespace Trackr.Api {
             else return json["data"][0]["id"];
         }
 
+        private static Anime ToAnime(JsonValue json){
+            if(json["type"] != "anime")
+                throw new ApiFormatException("Unexpected type encountered");
+
+            string[] synonyms = new string[json["attributes"]["abbreviatedTitles"].Count];
+            for(int i = 0; i < json["attributes"]["abbreviatedTitles"].Count; i++)
+                synonyms[i] = json["attributes"]["abbreviatedTitles"][i];
+            DateTime start = ToDateTime(json["attributes"]["startDate"]);
+            DateTime end = ToDateTime(json["attributes"]["endDate"]);
+            Anime.ShowTypes type = ToShowType(json["attributes"]["showType"]);
+            Anime.RunningStatuses status;
+            if(start == DateTime.MinValue) status = Anime.RunningStatuses.NotYetAired;
+            else if(end == DateTime.MinValue) status = Anime.RunningStatuses.Airing;
+            else status = Anime.RunningStatuses.Completed;
+
+            return new Anime(json["id"], json["attributes"]["titles"]["en_jp"],
+                json["attributes"]["titles"]["en"], json["attributes"]["titles"]["jp"],
+                synonyms, json["attributes"]["episodeCount"], json["attributes"]["averageRating"],
+                type, status, start, end, json["attributes"]["synopsis"], json["attributes"]["coverImage"]["original"]);
+        }
+
+        private static DateTime ToDateTime(string date){
+            return (date == null)
+                ? DateTime.MinValue
+                : DateTime.ParseExact(date, DateFormat, CultureInfo.InvariantCulture);
+        }
+
+        // when performing oauth functions, lets make sure that our token has not expired.
         private async void AuthenticationCheck(){
             if(_userId == 0 && !await VerifyCredentials())
                 throw new ApiRequestException("[Kitsu] Could not verify user credentials");
             if(DateTime.Now >= _expiration) await Authenticate();
+        }
+
+        ~Kitsu(){
+            _client.Dispose();
         }
     }
 }

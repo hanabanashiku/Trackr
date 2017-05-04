@@ -50,23 +50,26 @@ namespace Trackr.Api{
         /// The type of manga.
         /// </summary>
         public MangaTypes Type { get; }
+
         /// <summary>
         /// The last chapter the user completed.
         /// </summary>
-        public int CurrentChapter { get; set; }
+        public int CurrentChapter { get; set; } = 0;
+
         /// <summary>
         /// The last volume the user completed.
         /// </summary>
-        public int CurrentVolume { get; set; }
+        public int CurrentVolume { get; set; } = 0;
 
         internal Manga(int id, string title, string english,
-            string[] synonyms, int chapters, int volumes, double score,
-            MangaTypes type, RunningStatuses status,
+            string japanese, string[] synonyms, int chapters, int volumes,
+            double score, MangaTypes type, RunningStatuses status,
             DateTime start, DateTime end, string synopsis,
             string imageurl) {
             _id = id;
             Title = title;
             EnglishTitle = english;
+            JapaneseTitle = japanese;
             Synonyms = synonyms;
             Chapters = chapters;
             Volumes = volumes;

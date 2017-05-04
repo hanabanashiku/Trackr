@@ -15,6 +15,7 @@ namespace Trackr.Api {
     /// <summary>
     /// A class for handling instances of MyAnimeList accounts
     /// </summary>
+    // TODO: Add Japanese title support
     [Serializable]
     public class MyAnimeList : Api, IAnime, IManga {
         /// <summary>
@@ -307,7 +308,7 @@ namespace Trackr.Api {
                 var synopsisnode = node.SelectSingleNode(".//synopsis/text()");
                 string synopsis = (synopsisnode == null) ? string.Empty : synopsisnode.Value;                var urlnode = node.SelectSingleNode(".//image/text()");
                 string url = (urlnode == null) ? string.Empty : urlnode.Value;
-                return new Anime(id, title, english, synonyms, episodes, score, type, status, start, end, synopsis,
+                return new Anime(id, title, english, string.Empty, synonyms, episodes, score, type, status, start, end, synopsis,
                     url);
             }
             catch(NullReferenceException e) {
@@ -417,7 +418,7 @@ namespace Trackr.Api {
                 string synopsis = (synopsisnode == null) ? string.Empty : synopsisnode.Value;
                 var urlnode = node.SelectSingleNode(".//image/text()");
                 string url = (urlnode == null) ? string.Empty : urlnode.Value;
-                return new Manga(id, title, english, synonyms, chapters, volumes, score, type, status, start, end,
+                return new Manga(id, title, english, string.Empty, synonyms, chapters, volumes, score, type, status, start, end,
                     synopsis, url);
             }
             catch(NullReferenceException) {

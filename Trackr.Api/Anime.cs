@@ -50,19 +50,20 @@ namespace Trackr.Api {
         /// The number of episodes aired.
         /// </summary>
         public int Episodes { get; }
+
         /// <summary>
         /// The last episode the user completed.
         /// </summary>
-        public int CurrentEpisode { get; set; }
+        public int CurrentEpisode { get; set; } = 0;
 
         internal Anime(int id, string title, string english,
-            string[] synonyms, int episodes, double score,
-            ShowTypes type, RunningStatuses status,
+            string japanese, string[] synonyms, int episodes,
+            double score, ShowTypes type, RunningStatuses status,
             DateTime start, DateTime end, string synopsis,
             string imageurl){
-
             _id = id;
             Title = title;
+            JapaneseTitle = japanese;
             EnglishTitle = english;
             Synonyms = synonyms;
             Episodes = episodes;

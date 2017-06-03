@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Trackr.Core", "Trackr.Core\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Trackr.Api", "Trackr.Api\Trackr.Api.csproj", "{F9B6CBEB-5BA2-4896-838E-1B2E190DA74E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Trackr.Torrent", "Trackr.Torrent\Trackr.Torrent.csproj", "{F8ADCA4B-AB91-4A72-BDE9-8835F8A2DAD6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +35,10 @@ Global
 		{F9B6CBEB-5BA2-4896-838E-1B2E190DA74E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F9B6CBEB-5BA2-4896-838E-1B2E190DA74E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F9B6CBEB-5BA2-4896-838E-1B2E190DA74E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F8ADCA4B-AB91-4A72-BDE9-8835F8A2DAD6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F8ADCA4B-AB91-4A72-BDE9-8835F8A2DAD6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F8ADCA4B-AB91-4A72-BDE9-8835F8A2DAD6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F8ADCA4B-AB91-4A72-BDE9-8835F8A2DAD6}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

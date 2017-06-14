@@ -18,6 +18,7 @@ namespace Trackr.Api {
 		private const string ClientSecret = "Vthc0hucRJjJPKAg56PIryD9HBh0A";
 		private const string BaseUrl = "https://anilist.co/api/";
 		private const string DateFormat = "yyyyMMdd";
+		private const string DateTimeFormat = "yyyy-MM-dd'T'hh:mm:ssZ";
 		
 		private static readonly HttpClient Client = new HttpClient();
 		
@@ -44,6 +45,13 @@ namespace Trackr.Api {
 			if(!VerifyCredentials().Result)
 				throw new ApiRequestException("Could not verify credentials");
 			Client.BaseAddress = new Uri(BaseUrl);
+		}
+		
+		/// <summary>
+		/// Get the authorization PIN for retrieving an access token.
+		/// </summary>
+		public async void GetPin(){
+			throw new NotImplementedException();
 		}
 
 		/// <summary>
@@ -81,6 +89,20 @@ namespace Trackr.Api {
 				Content = content,
 				Headers = { Authorization = new AuthenticationHeaderValue("Bearer", _accessToken)}
 			};
+			var response = await Client.SendAsync(msg);
+			return response.IsSuccessStatusCode;
+		}
+
+		/// <summary>
+		/// Remove an anime from the authenticated user's list
+		/// </summary>
+		/// <param name="id">The ID of the anime to remove</param>
+		/// <returns>true on success</returns>
+		public async Task<bool> RemoveAnime(int id){
+			await AuthenticationCheck();
+			
+			var msg = new HttpRequestMessage(HttpMethod.Delete, $"animelist/{id}");
+			msg.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _accessToken);
 			var response = await Client.SendAsync(msg);
 			return response.IsSuccessStatusCode;
 		}
@@ -126,6 +148,40 @@ namespace Trackr.Api {
 
 			var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
 			return (from JsonValue v in json select ToAnime(v)).ToList();
+		}
+
+		/// <summary>
+		/// Pull a copy of the authenticated user's list from AniList.
+		/// </summary>
+		/// <returns>A list of all anime list entries.</returns>
+		/// <exception cref="ApiRequestException">On bad status code</exception>
+		public async Task<List<Anime>> PullAnimeList(){
+			await AuthenticationCheck();
+			
+			var msg = new HttpRequestMessage(HttpMethod.Get, $"user/{Username}/animelist");
+			msg.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _accessToken);
+			var response = await Client.SendAsync(msg);
+			if(!response.IsSuccessStatusCode)
+				throw new ApiRequestException("Error status code: " + response.StatusCode);
+
+			var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
+			var ret = new List<Anime>();
+			foreach(JsonValue list in json["lists"]) {
+				foreach(JsonValue entry in list) {
+					var a = ToAnime(entry["anime"]);
+					a.ListStatus = ToListStatus(entry["list_status"]);
+					a.CurrentEpisode = entry["episodes_watched"];
+					a.UserScore = (int) Math.Ceiling(entry["score_raw"] / 10.0);
+					a.UserStart = (entry["started_on"] == null)
+						? DateTime.MinValue
+						: DateTime.ParseExact(entry["started_on"], DateTimeFormat, CultureInfo.InvariantCulture);
+					a.UserEnd = (entry["finished_on"] == null)
+						? DateTime.MinValue
+						: DateTime.ParseExact(entry["finished_on"], DateTimeFormat, CultureInfo.InvariantCulture);
+					ret.Add(a);
+				}
+			}
+			return ret;
 		}
 
 		// Using the given pin, get the access token
@@ -230,6 +286,25 @@ namespace Trackr.Api {
 			}
 		}
 
+		// convert a string received from AniList to a ListStatus
+		private static ApiEntry.ListStatuses ToListStatus(string status){
+			switch(status) {
+				case "completed":
+					return ApiEntry.ListStatuses.Completed;
+				case "watching": case "reading":
+					return ApiEntry.ListStatuses.Current;
+				case "dropped":
+					return ApiEntry.ListStatuses.Dropped;
+				case "on-hold":
+					return ApiEntry.ListStatuses.OnHold;
+				case "plan to watch": case "plan to read":
+					return ApiEntry.ListStatuses.Planned;
+				default:
+					return ApiEntry.ListStatuses.NotInList;
+			}
+		}
+
+		// convet a string received from AniList to a ShowType
 		private static Anime.ShowTypes ToShowType(string type){
 			switch(type) {
 				case "TV": case "TV short":
@@ -249,14 +324,16 @@ namespace Trackr.Api {
 			}
 		}
 
+		// find running status of a series based on given start and end time
 		private static Anime.RunningStatuses ResolveRunningStatus(DateTime start, DateTime end){
-			if(start > DateTime.Now)
+			if(start == DateTime.MinValue || start > DateTime.Now)
 				return Anime.RunningStatuses.NotYetAired;
-			if(end < DateTime.Now)
+			if(end == DateTime.MinValue || end < DateTime.Now)
 				return Anime.RunningStatuses.Airing;
 			return Anime.RunningStatuses.Completed;
 		}
 
+		// Convert a set of JsonValues received from AniList to an Anime object.
 		private static Anime ToAnime(JsonValue a){
 			string[] syn = new string[a["synonyms"].Count];
 			int i = 0;

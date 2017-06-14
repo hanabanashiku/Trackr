@@ -72,7 +72,7 @@ namespace Trackr.Api {
         public DateTime UserEnd { get; set; } = DateTime.MinValue;
 
         /// <summary>
-        /// The user's personal score of the title.
+        /// The user's personal score of the title, from 0 to 10.
         /// </summary>
         public int UserScore {
             get { return _userScore; }

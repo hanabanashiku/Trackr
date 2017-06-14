@@ -1,8 +1,12 @@
-﻿using System;
+﻿
+using System;
 using System.Json;
 using System.Net.Http;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Net.Http.Headers;
 
 namespace Trackr.Api {
 	public class AniList : Api, IAnime, IManga {
@@ -14,8 +18,8 @@ namespace Trackr.Api {
 		private const string ClientId = "nolewding-p0hl4";
 		private const string ClientSecret = "Vthc0hucRJjJPKAg56PIryD9HBh0A";
 		private const string BaseUrl = "https://anilist.co/api/";
-		private const string ContentType = "Content-Type: application/x-www-form-urlencoded";
-
+		private const string DateFormat = "yyyyMMdd";
+		
 		private static readonly HttpClient Client = new HttpClient();
 		
 		// these are for using AniList to maintain anime/manga lists - login required.
@@ -23,7 +27,6 @@ namespace Trackr.Api {
 		private readonly string _pin;
 		private string _accessToken;
 		private string _refreshToken;
-		private int _userId;
 
 		// these are for getting general information in a static context - no login required.
 		private static int _clientExpiration;
@@ -44,6 +47,10 @@ namespace Trackr.Api {
 			Client.BaseAddress = new Uri(BaseUrl);
 		}
 
+		/// <summary>
+		/// Verify the user's credentials and pulls the username of the user.
+		/// </summary>
+		/// <returns>true on success.</returns>
 		public async Task<bool> VerifyCredentials(){
 			await AuthenticationCheck();
 			var response = await Client.GetAsync("user");
@@ -52,9 +59,70 @@ namespace Trackr.Api {
 				return false;
 			
 			var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
-			_userId = json["id"];
 			Username = json["display_name"];
 			return true;
+		}
+
+		/// <summary>
+		/// Add an anime to the authenticated user's list.
+		/// </summary>
+		/// <param name="id">The AniList ID of the anime to add.</param>
+		/// <param name="status">The list status of the anime.</param>
+		/// <returns>true on success.</returns>
+		public async Task<bool> AddAnime(int id, ApiEntry.ListStatuses status){
+			await AuthenticationCheck();
+			
+			var content = new FormUrlEncodedContent(new [] {
+				new KeyValuePair<string, string>("id", id.ToString()), 	
+				new KeyValuePair<string, string>("list_status", FromListStatus(status, true)), 
+			});
+			var msg = new HttpRequestMessage(HttpMethod.Post, "animelist") {
+				Content = content,
+				Headers = { Authorization = new AuthenticationHeaderValue("Bearer", _accessToken)}
+			};
+			var response = await Client.SendAsync(msg);
+			return response.IsSuccessStatusCode;
+		}
+
+		/// <summary>
+		/// Update an anime on the authenticated user's list.
+		/// </summary>
+		/// <param name="a">The anime to update</param>
+		/// <returns>true on success.</returns>
+		public async Task<bool> UpdateAnime(Anime a){
+			await AuthenticationCheck();
+			
+			var content = new FormUrlEncodedContent(new [] {
+				new KeyValuePair<string, string>("id", a.Id.ToString()), 
+				new KeyValuePair<string, string>("list_status", FromListStatus(a.ListStatus, true)), 
+				new KeyValuePair<string, string>("score_raw", (a.UserScore * 10).ToString()),
+				new KeyValuePair<string, string>("episodes_watched", a.CurrentEpisode.ToString())
+			});
+			
+			var msg = new HttpRequestMessage(HttpMethod.Put, "animelist") {
+				Content = content,
+				Headers = { Authorization = new AuthenticationHeaderValue("Bearer", _accessToken)}
+			};
+			var response = await Client.SendAsync(msg);
+			return response.IsSuccessStatusCode;
+		}
+
+		/// <summary>
+		/// Search for an anime from the AniList database.
+		/// </summary>
+		/// <param name="keywords">The search terms to use.</param>
+		/// <returns>The list of results</returns>
+		/// <exception cref="ApiRequestException">If the request returns an error code.</exception>
+		public async Task<List<Anime>> FindAnime(string keywords){
+			await AuthenticationCheck();
+
+			var response = await Client.GetAsync("anime/search/" + System.Uri.EscapeDataString(keywords));
+			
+			if(!response.IsSuccessStatusCode)
+				throw new ApiRequestException("Error searching anime: " + response.StatusCode);
+
+			var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
+			return (from JsonValue v in json select ToAnime(v)).ToList();
 		}
 
 		// Using the given pin, get the access token
@@ -72,7 +140,7 @@ namespace Trackr.Api {
 			var response = await Client.PostAsync("auth/access_token", content);
 			if(!response.IsSuccessStatusCode)
 				return false;
-			var json = JsonValue.Parse(response.Content.ReadAsStringAsync().Result);
+			var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
 			_accessToken = json["access_token"];
 			_expiration = json["expires"];
 			_refreshToken = json["refresh_token"];
@@ -101,10 +169,10 @@ namespace Trackr.Api {
 			// If we were given a pin, this will get the first auth token
 			// If we received a refresh token, this will give us the next one.
 			if(string.IsNullOrEmpty(_accessToken))
-				await Authenticate();
+				return await Authenticate();
 			// Our access token expired, refresh.
-			else if((long) (DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1)).TotalSeconds) > _expiration)
-				await Refresh();
+			if((long) (DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1)).TotalSeconds) > _expiration)
+				return await Refresh();
 			return true;
 		}
 
@@ -138,6 +206,73 @@ namespace Trackr.Api {
 				return await AuthenticateClient();
 			// We are golden
 			return true;
+		}
+
+		// Convert from list status to string.
+		// params: the status, is it an anime or manga?
+		private static string FromListStatus(ApiEntry.ListStatuses status, bool anime){
+			switch(status) {
+				case ApiEntry.ListStatuses.Completed:
+					return "completed";
+				case ApiEntry.ListStatuses.Current:
+					return anime ? "watching" : "reading";
+				case ApiEntry.ListStatuses.Dropped:
+					return "dropped";
+				case ApiEntry.ListStatuses.OnHold:
+					return "on-hold";
+				case ApiEntry.ListStatuses.Planned:
+					return anime ? "plan to watch" : "plan to read";
+				default:
+					return string.Empty;
+			}
+		}
+
+		private static Anime.ShowTypes ToShowType(string type){
+			switch(type) {
+				case "TV": case "TV short":
+					return Anime.ShowTypes.Tv;
+				case "Movie":
+					return Anime.ShowTypes.Movie;
+				case "Special":
+					return Anime.ShowTypes.Special;
+				case "OVA":
+					return Anime.ShowTypes.Ova;
+				case "ONA":
+					return Anime.ShowTypes.Ona;
+				case "Music":
+					return Anime.ShowTypes.Music;
+				default:
+					return Anime.ShowTypes.Tv;
+			}
+		}
+
+		private static Anime.RunningStatuses ResolveRunningStatus(DateTime start, DateTime end){
+			if(start > DateTime.Now)
+				return Anime.RunningStatuses.NotYetAired;
+			if(end < DateTime.Now)
+				return Anime.RunningStatuses.Airing;
+			return Anime.RunningStatuses.Completed;
+		}
+
+		private static Anime ToAnime(JsonValue a){
+			string[] syn = new string[a["synonyms"].Count];
+			int i = 0;
+			foreach(JsonValue s in a["synonyms"]) {
+				syn[i] = s;
+				i++;
+			}
+
+			DateTime start = (a["start"] == null)
+				? DateTime.MinValue
+				: DateTime.ParseExact(a["start"], DateFormat, CultureInfo.InvariantCulture);
+			DateTime end = (a["end"] == null)
+				? DateTime.MinValue
+				: DateTime.ParseExact(a["end"], DateFormat, CultureInfo.InvariantCulture);
+			
+			return new Anime(a["id"], a["title_romaji"], a["title_english"],
+				a["title_japanese"], syn, a["total_episodes"], a["average_score"]/10, 
+				ToShowType(a["type"]), ResolveRunningStatus(start, end), start, end, 
+					a["description"], a["image_url_lge"]);
 		}
 	}
 }

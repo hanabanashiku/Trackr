@@ -1,5 +1,4 @@
-﻿
-using System;
+﻿using System;
 using System.Json;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -53,7 +52,9 @@ namespace Trackr.Api {
 		/// <returns>true on success.</returns>
 		public async Task<bool> VerifyCredentials(){
 			await AuthenticationCheck();
-			var response = await Client.GetAsync("user");
+			var msg = new HttpRequestMessage(HttpMethod.Get, "user");
+			msg.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _accessToken);
+			var response = await Client.SendAsync(msg);
 			
 			if(!response.IsSuccessStatusCode)
 				return false;
@@ -116,7 +117,9 @@ namespace Trackr.Api {
 		public async Task<List<Anime>> FindAnime(string keywords){
 			await AuthenticationCheck();
 
-			var response = await Client.GetAsync("anime/search/" + System.Uri.EscapeDataString(keywords));
+			var msg = new HttpRequestMessage(HttpMethod.Get, "anime/search/" + System.Uri.EscapeDataString(keywords));
+			msg.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _accessToken);
+			var response = await Client.SendAsync(msg);
 			
 			if(!response.IsSuccessStatusCode)
 				throw new ApiRequestException("Error searching anime: " + response.StatusCode);

@@ -43,7 +43,7 @@ namespace Trackr.Api {
 			if(isRefresh)
 				_refreshToken = pin;
 			else _pin = pin;
-
+			
 			if(!VerifyCredentials().Result)
 				throw new ApiRequestException("Could not verify credentials");
 			Client.BaseAddress = new Uri(BaseUrl);
@@ -305,7 +305,7 @@ namespace Trackr.Api {
         /// <returns>A dictionary with episode numbers as keys.</returns>
         /// <remarks>An empty dictionary means that all episodes have been released.</remarks>
         /// <remarks>Performing this function from outside of AniList requires using the GetAniListId() function.</remarks>
-        public static async Dictionary<int, DateTime> GetAiringTimes(int id) {
+        public static async Task<Dictionary<int, DateTime>> GetAiringTimes(int id) {
             await ClientAuthenticationCheck();
 
             var msg = new HttpRequestMessage(HttpMethod.Get, $"anime/{id}/airing");
@@ -314,12 +314,18 @@ namespace Trackr.Api {
             if (!response.IsSuccessStatusCode)
                 throw new ApiRequestException("Error getting air times: " + response.StatusCode);
 
-            var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
+            var json = (JsonObject)JsonValue.Parse(await response.Content.ReadAsStringAsync());
             var ret = new Dictionary<int, DateTime>();
-            foreach(JsonValue item in json) {
-                ret[int.Parse(item.Key)] = DateTimeOffset.FromUnixTimeSeconds(item).UtcDateTime;
+
+            foreach(var key in json.Keys) {
+                ret[int.Parse(key)] = new DateTime(1970, 1, 1, 0, 0, 0, 0).AddSeconds(json[key]).ToLocalTime();
             }
+			return ret;
         }
+
+		public static async Task<Dictionary<int, DateTime>> GetAiringTimes(string title, Anime.ShowTypes type, int episodes){
+			return await GetAiringTimes(await GetAniListId(title, type, episodes));
+		}
 
         /// <summary>
         /// Get a list of all anime from a specific season
@@ -349,11 +355,11 @@ namespace Trackr.Api {
         /// <param name="type">The anime type</param>
         /// <param name="episodes">THe total number of episodes</param>
         /// <returns>The ID on success, or -1 on failure.</returns>
-        public async Task<int> GetAniListId(string title, Anime.ShowTypes type, int episodes) {
+        public static async Task<int> GetAniListId(string title, Anime.ShowTypes type, int episodes) {
             await ClientAuthenticationCheck();
 
             var msg = new HttpRequestMessage(HttpMethod.Get, "anime/search/" + System.Uri.EscapeDataString(title));
-            msg.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _accessToken);
+            msg.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _clientAccessToken);
             var response = await Client.SendAsync(msg);
 
             if (!response.IsSuccessStatusCode)
@@ -369,6 +375,27 @@ namespace Trackr.Api {
                     return a.Id;
             return -1;
         }
+
+		public static async Task<Anime> GetAniListAnimeEquiv(string title, Anime.ShowTypes type, int episodes){
+			await ClientAuthenticationCheck();
+			
+			var msg = new HttpRequestMessage(HttpMethod.Get, "anime/search/" + System.Uri.EscapeDataString(title));
+            msg.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _clientAccessToken);
+            var response = await Client.SendAsync(msg);
+
+            if (!response.IsSuccessStatusCode)
+                throw new ApiRequestException("Error searching anime: " + response.StatusCode);
+
+            var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
+            var result = (from JsonValue v in json select ToAnime(v)).ToList();
+
+            foreach(Anime a in result)
+                // statistically speaking this should be enough to guarantee it is correct in 99% of cases.
+                // disclaimer: I am not a statician
+                if (a.Type == type && a.Episodes == episodes)
+                    return a;
+			throw new ApiRequestException("Equivalent anime not found.");
+		}
 
         // Using the given pin, get the access token
         private async Task<bool> Authenticate(){
@@ -564,9 +591,9 @@ namespace Trackr.Api {
 				: DateTime.ParseExact(a["end"], DateFormat, CultureInfo.InvariantCulture);
 			
 			return new Anime(a["id"], a["title_romaji"], a["title_english"],
-				a["title_japanese"], syn, a["total_episodes"], a["average_score"]/10, 
+				a["title_japanese"], syn, a["total_episodes"], GetAiringTimes(a["id"]).Result, a["average_score"]/10, 
 				ToShowType(a["type"]), ResolveRunningStatus(start, end), start, end, 
-					a["description"], a["image_url_lge"]);
+					a["description"], a["image_url_lge"], "AniList");
 		}
 
         // Convert a set of JsonValues received from AniList to a manga object.

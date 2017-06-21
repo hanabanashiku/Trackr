@@ -306,10 +306,12 @@ namespace Trackr.Api {
                     ? DateTime.MinValue
                     : DateTime.ParseExact(endstring, DateFormat, CultureInfo.InvariantCulture);
                 var synopsisnode = node.SelectSingleNode(".//synopsis/text()");
-                string synopsis = (synopsisnode == null) ? string.Empty : synopsisnode.Value;                var urlnode = node.SelectSingleNode(".//image/text()");
+                string synopsis = (synopsisnode == null) ? string.Empty : synopsisnode.Value;                
+                var urlnode = node.SelectSingleNode(".//image/text()");
                 string url = (urlnode == null) ? string.Empty : urlnode.Value;
-                return new Anime(id, title, english, string.Empty, synonyms, episodes, score, type, status, start, end, synopsis,
-                    url);
+                var anilist = AniList.GetAniListAnimeEquiv(title, type, episodes).Result;
+                return new Anime(id, title, english, anilist.JapaneseTitle, synonyms, episodes, anilist.AirTimes, score, type, status, start, end, synopsis,
+                    url, "MyAnimeList");
             }
             catch(NullReferenceException e) {
                 throw new ApiFormatException("The node was missing a required value.");
@@ -337,9 +339,10 @@ namespace Trackr.Api {
                     ? DateTime.MinValue
                     : DateTime.ParseExact(endstring.Replace("00", "01"), DateFormat, CultureInfo.InvariantCulture);
                 string url = node.SelectSingleNode(".//series_image/text()").Value;
+                var anilist = AniList.GetAniListAnimeEquiv(title, type, episodes).Result;
                 Anime result = new Anime(
-                    id, title, string.Empty, synonyms, episodes, 0.0, type, status, seriesStart, seriesEnd,
-                    string.Empty, url) {
+                    id, title, anilist.EnglishTitle, anilist.JapaneseTitle, synonyms, episodes, anilist.AirTimes, anilist.Score, type, status, seriesStart, seriesEnd,
+                    string.Empty, url, "MyAnimeList") {
                     CurrentEpisode = int.Parse(node.SelectSingleNode(".//my_watched_episodes/text()").Value)
                 };
 
@@ -450,7 +453,7 @@ namespace Trackr.Api {
                     ? DateTime.MinValue
                     : DateTime.ParseExact(endstring.Replace("00", "01"), DateFormat, CultureInfo.InvariantCulture);
                 string url = node.SelectSingleNode(".//series_image/text()").Value;
-                Manga result = new Manga(id, title, string.Empty, synonyms, chapters, volumes, 0.0, type, status, start,
+                Manga result = new Manga(id, title, string.Empty, string.Empty, synonyms, chapters, volumes, 0.0, type, status, start,
                     end, string.Empty, url);
                 result.CurrentChapter = int.Parse(node.SelectSingleNode(".//my_read_chapters/text()").Value);
                 result.CurrentVolume = int.Parse(node.SelectSingleNode(".//my_read_volumes/text()").Value);

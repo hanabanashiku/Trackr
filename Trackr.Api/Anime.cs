@@ -1,10 +1,16 @@
 ﻿﻿using System;
+using System.Collections.Generic;
 
 namespace Trackr.Api {
     /// <summary>
     /// Reperesents an anime item from an API call
     /// </summary>
     public class Anime : ApiEntry, IEquatable<Anime>{
+
+        /// <summary>
+        /// The API that grabbed the information.
+        /// </summary>
+        public string Provider {get; }
 
         /// <summary>
         /// Values representing the running status of the given anime.
@@ -51,22 +57,31 @@ namespace Trackr.Api {
         /// </summary>
         public int Episodes { get; }
 
+        public Dictionary<int, DateTime> AirTimes;
+
         /// <summary>
         /// The last episode the user completed.
         /// </summary>
         public int CurrentEpisode { get; set; } = 0;
 
+        /// <summary>
+        /// The user's series notes.
+        /// </summary>
+        public string Notes {get; set; } = string.Empty;
+
         internal Anime(int id, string title, string english,
             string japanese, string[] synonyms, int episodes,
+            Dictionary<int, DateTime> airtimes, 
             double score, ShowTypes type, RunningStatuses status,
             DateTime start, DateTime end, string synopsis,
-            string imageurl){
+            string imageurl, string provider){
             _id = id;
             Title = title;
             JapaneseTitle = japanese;
             EnglishTitle = english;
             Synonyms = synonyms;
             Episodes = episodes;
+            AirTimes = airtimes;
             Score = score;
             StartDate = start;
             EndDate = end;
@@ -74,6 +89,7 @@ namespace Trackr.Api {
             Status = status;
             Synopsis = synopsis;
             ImageUrl = imageurl;
+            Provider = provider;
         }
 
         /// <summary>

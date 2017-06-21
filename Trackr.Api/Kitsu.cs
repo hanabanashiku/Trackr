@@ -458,11 +458,11 @@ namespace Trackr.Api {
             if(start == DateTime.MinValue) status = Anime.RunningStatuses.NotYetAired;
             else if(end == DateTime.MinValue) status = Anime.RunningStatuses.Airing;
             else status = Anime.RunningStatuses.Completed;
-
+            var airtimes = AniList.GetAiringTimes(json["attributes"]["titles"]["en_jp"], type, json["attributes"]["episodeCount"]).Result;
             return new Anime(json["id"], json["attributes"]["titles"]["en_jp"],
                 json["attributes"]["titles"]["en"], json["attributes"]["titles"]["jp"],
-                synonyms, json["attributes"]["episodeCount"], json["attributes"]["averageRating"],
-                type, status, start, end, json["attributes"]["synopsis"], json["attributes"]["coverImage"]["original"]);
+                synonyms, json["attributes"]["episodeCount"], airtimes, json["attributes"]["averageRating"],
+                type, status, start, end, json["attributes"]["synopsis"], json["attributes"]["coverImage"]["original"], "Kitsu");
         }
 
         private static Manga ToManga(JsonValue json){

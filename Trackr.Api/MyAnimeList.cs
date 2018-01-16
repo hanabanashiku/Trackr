@@ -18,10 +18,11 @@ namespace Trackr.Api {
     // TODO: Add Japanese title support
     [Serializable]
     public class MyAnimeList : Api, IAnime, IManga {
+		public const string Identifier = "MyAnimeList";
         /// <summary>
         /// The name of the current API.
         /// </summary>
-        public new string Name { get; } = "MyAnimeList";
+        public new string Name { get; } = Identifier;
         /// <summary>
         /// The username of the user logged into the API.
         /// </summary>

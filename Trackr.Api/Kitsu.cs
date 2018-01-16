@@ -16,7 +16,9 @@ namespace Trackr.Api {
     /// </summary>
     /// <remarks>This currently uses the undocumented Edge API. The official API is a WIP.</remarks>
     public class Kitsu : Api, IAnime, IManga {
-        public new string Name { get; } = "Kitsu";
+		public const string Identifier = "Kitsu";
+
+        public new string Name { get; } = Identifier;
         public new string Username => _clientLogin.Username;
 
         private const string ContentType = "application/vnd.api+json";

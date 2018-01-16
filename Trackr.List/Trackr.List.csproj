@@ -1,11 +1,10 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{DF4527EE-5F62-4019-8FEB-C578A1E106A0}</ProjectGuid>
-    <ProjectTypeGuids>{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Trackr.List</RootNamespace>
@@ -44,11 +43,11 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Trackr.Api\Trackr.Api.csproj">
-      <Project>{f9b6cbeb-5ba2-4896-838e-1b2e190da74e}</Project>
+      <Project>{F9B6CBEB-5BA2-4896-838E-1B2E190DA74E}</Project>
       <Name>Trackr.Api</Name>
     </ProjectReference>
     <ProjectReference Include="..\Trackr.Core\Trackr.Core.csproj">
-      <Project>{93be009b-c563-4291-8827-33c04d34d0ce}</Project>
+      <Project>{93BE009B-C563-4291-8827-33C04D34D0CE}</Project>
       <Name>Trackr.Core</Name>
     </ProjectReference>
   </ItemGroup>

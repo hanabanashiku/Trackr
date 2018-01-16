@@ -1,0 +1,48 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{5B775C46-9451-4F73-B3DD-2861CCBB5121}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Trackr.Gui.Common</RootNamespace>
+    <AssemblyName>Trackr.Gui.Common</AssemblyName>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug</OutputPath>
+    <DefineConstants>DEBUG;</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <ConsolePause>false</ConsolePause>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>full</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release</OutputPath>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <ConsolePause>false</ConsolePause>
+  </PropertyGroup>
+  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+  <ItemGroup>
+    <Compile Include="User.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Trackr.Core\Trackr.Core.csproj">
+      <Project>{93BE009B-C563-4291-8827-33C04D34D0CE}</Project>
+      <Name>Trackr.Core</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Trackr.List\Trackr.List.csproj">
+      <Project>{DF4527EE-5F62-4019-8FEB-C578A1E106A0}</Project>
+      <Name>Trackr.List</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Trackr.Api\Trackr.Api.csproj">
+      <Project>{F9B6CBEB-5BA2-4896-838E-1B2E190DA74E}</Project>
+      <Name>Trackr.Api</Name>
+    </ProjectReference>
+  </ItemGroup>
+</Project>

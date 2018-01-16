@@ -15,7 +15,7 @@ namespace Trackr.List {
     [Serializable]
     public class AnimeList : IEnumerable<Anime> {
         [NonSerialized]
-        private IAnime _client;
+        private readonly IAnime _client;
         /// <summary>
         /// The client this list is using
         /// </summary>
@@ -23,6 +23,8 @@ namespace Trackr.List {
 
         private List<Anime> _entries;
         private Queue<Anime> _queue; // these must be synced
+		private string _api; // the type of api
+		private string _username; // the username of the api instance
 
         private readonly string _filePath;
 
@@ -34,6 +36,8 @@ namespace Trackr.List {
             _queue = new Queue<Anime>();
             _client = client;
             _filePath = ResolveFilePath(client);
+			_api = _client.Name;
+			_username = _client.Username;
         }
 
         /// <summary>
@@ -47,10 +51,13 @@ namespace Trackr.List {
                 var fs = new FileStream(ResolveFilePath(client), FileMode.Open, FileAccess.Read, FileShare.Read);
                 AnimeList list = (AnimeList) f.Deserialize(fs);
                 fs.Close();
+				// if it is a different user, reload the list.
+				if(client.Name != list._api || client.Username != list._username)
+					throw new Exception();
                 return list;
             }
             catch(Exception) {
-                AnimeList list = new AnimeList(client);
+                var list = new AnimeList(client);
                 list.Sync().Wait();
                 return list;
             }

@@ -8,7 +8,7 @@ namespace Trackr.Api {
         /// <summary>
         /// The name of the current API.
         /// </summary>
-        public static string Name;
+        public string Name;
 
         /// <summary>
         /// The username of the user logged into the API.

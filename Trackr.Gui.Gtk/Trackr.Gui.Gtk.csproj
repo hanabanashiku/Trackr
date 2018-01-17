@@ -46,6 +46,10 @@
     <Compile Include="SettingsWindow.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Trackr.Api\Trackr.Api.csproj">
+      <Project>{f9b6cbeb-5ba2-4896-838e-1b2e190da74e}</Project>
+      <Name>Trackr.Api</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Trackr.Core\Trackr.Core.csproj">
       <Project>{6b731dcf-8e55-4289-b916-488e48e84029}</Project>
       <Name>Trackr.Core</Name>

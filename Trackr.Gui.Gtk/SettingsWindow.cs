@@ -1,8 +1,5 @@
 ﻿using System;
-using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
-using System.Text;
-using Gdk;
 using Gtk;
 using Window = Gtk.Window;
 
@@ -17,6 +14,20 @@ namespace Trackr.Gui.Gtk {
 		private HBox _buttons;
 		private Alignment _hAlign;
 
+		// General
+		private CheckButton _onTop; 
+		
+		// Accounts
+		private VBox _acctBox1;
+		private enum Columns { Used, Username, Service}
+		private ListStore _acctStore;
+		private TreeView _acctTree;
+		private ScrolledWindow _acctSw;
+		private Label _acctLabel;
+		private Button _acctAdd, _acctRem;
+		private HBox _acctB;
+		private Alignment _acctbAlign;
+			
 		private Button _ok, _cancel;
 		
 		/// <summary>
@@ -25,7 +36,7 @@ namespace Trackr.Gui.Gtk {
 		/// <param name="forced">Set to true if there was no settings definiton beforehand.</param>
 		public SettingsWindow(bool forced) : base("Settings") {
 			_forced = forced;
-			DefaultSize = new Size(500, 450);
+			DefaultSize = new Gdk.Size(500, 450);
 			DestroyWithParent = true;
 			Role = "settings";
 			WindowPosition = _forced ? WindowPosition.Center : WindowPosition.CenterOnParent;
@@ -33,12 +44,17 @@ namespace Trackr.Gui.Gtk {
 			Instantiate();
 			Build();
 			
-			// Events
+			// Set the Event Handlers
 			DeleteEvent += OnDelete;
 			ShowAll();
+
+			if(_forced) _nb.CurrentPage = 1; // Open to Accounts tab
 		}
 
+		
+		
 		private void Instantiate() {
+			// Lets make our containers
 			_container = new VBox(false, 3);
 			_nb = new Notebook();
 			_general = new Frame();
@@ -48,28 +64,72 @@ namespace Trackr.Gui.Gtk {
 			_buttons = new HBox(true, 3);
 			_hAlign = new Alignment(1, 1, 0, 0);
 
+			// The buttons that go on the bottom
 			_ok = new Button("OK");
 			_cancel = new Button("Cancel");
 
+			// General Tab
+			_onTop = new CheckButton("Keep Window on Top");
+
+			// Accounts Tab
+			_acctBox1 = new VBox(false, 3);
+			_acctStore = new ListStore(typeof(string), typeof(string), typeof(string));
+			_acctTree = new TreeView(_acctStore);
+			_acctSw = new ScrolledWindow();
+			_acctLabel = new Label("Choose the accounts to use below. Double click on an account to change account settings.");
+			_acctB = new HBox(true, 3);
+			_acctbAlign = new Alignment(1, 1, 0, 0);
+			_acctAdd = new Button(new Image(Stock.Add, IconSize.Button));
+			_acctRem = new Button(new Image(Stock.Remove, IconSize.Button));
 		}
 
+
+		
 		private void Build() {
+			// Set up our notebook
 			Add(_container);
 			_container.PackStart(_nb, true, true, 0);
 			_nb.InsertPage(_general, new Label("General"), -1);
-			_general.Add(new Label("Hello World"));
 			_nb.InsertPage(_accounts, new Label("Accounts"), -1);
 			_nb.InsertPage(_recognition, new Label("Recognition"), -1);
 			_nb.InsertPage(_torrents, new Label("Torrents"), -1);
 			
-			
+			// Lets add our buttons that go on the bottom
 			_container.PackEnd(_hAlign, false, false, 0);
+			_hAlign.SetPadding(0, 5, 0, 5);
 			_hAlign.Add(_buttons);
 			_buttons.Add(_ok);
 			_ok.SetSizeRequest(70, 30);
 			_buttons.Add(_cancel);
 			_cancel.Clicked += delegate { Destroy(); };
+			
+			// General tab
+			_general.Add(_onTop);
+			
+			// Accounts tab
+			_acctSw.ShadowType = ShadowType.EtchedIn;
+			_acctSw.SetPolicy(PolicyType.Automatic, PolicyType.Automatic);
+			_acctBox1.BorderWidth = 10;
+			//Add the tree columns
+			var i = 0;
+			foreach(var x in Enum.GetNames(typeof(Columns))) {
+				var crt = new CellRendererText();
+				var c = new TreeViewColumn(x, crt, "text", i) {SortColumnId = i};
+				_acctTree.AppendColumn(c);
+				i++;
+			}
+			_accounts.Add(_acctBox1);
+			_acctBox1.PackStart(_acctLabel, false, false, 10);
+			_acctBox1.Add(_acctSw);
+			_acctSw.Add(_acctTree);
+			_acctB.Add(_acctAdd);
+			_acctB.Add(_acctRem);
+			_acctbAlign.Add(_acctB);
+			_acctBox1.PackEnd(_acctbAlign, false, false, 0);
+		}
 
+		private void AddToAccountList(Api.Api api) {
+			_acctStore.AppendValues(string.Empty, api.Username, api.Name);
 		}
 
 		private void OnDelete(object o, DeleteEventArgs args) {

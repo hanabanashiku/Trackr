@@ -1,10 +1,10 @@
 ﻿using System;
+using System.Linq;
 using System.Json;
 using System.Net.Http;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
 using System.Net.Http.Headers;
 
 namespace Trackr.Api {

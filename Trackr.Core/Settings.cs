@@ -35,9 +35,9 @@ namespace Trackr.Core {
 		public string DefaultAnime { get; set; }
 
 		/// <summary>
-		/// The default manga list adccount, in format Username@APIName
+		/// The default manga list account, in format Username@APIName
 		/// </summary>
-		public string DefaultManga { get; set; }
+		public string DefaultManga { get; set; } 
 
 		/// <summary>
 		/// If enabled, the main window will be on top of all other windows.
@@ -49,6 +49,8 @@ namespace Trackr.Core {
 			using(var rng = new RNGCryptoServiceProvider())
 				rng.GetBytes(Entropy);
 			Accounts = new List<KeyValuePair<string, UserPass>>();
+			DefaultAnime = string.Empty;
+			DefaultManga = string.Empty;
 		}
 
 		/// <summary>

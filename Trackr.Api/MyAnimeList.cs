@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing.Drawing2D;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -53,11 +54,12 @@ namespace Trackr.Api {
         /// </summary>
         /// <returns>true if credentials are valid</returns>
         /// <exception cref="ApiFormatException">if the request times out.</exception>
+        /// <exception cref="WebException">if a connection cannot be established.</exception>
         public async Task<bool> VerifyCredentials(){
             var response = await _client.GetAsync(Path.Combine(UrlBase, "account", "verify_credentials.xml"));
             if(response.StatusCode == HttpStatusCode.RequestTimeout)
                 throw new ApiRequestException("The request timed out.");
-            return response.Content.ReadAsStringAsync().Result != "Invalid credentials";
+            return response.StatusCode == HttpStatusCode.OK; // If credentials are wrong it throws a 401 error
         }
 
         /// <summary>
@@ -68,6 +70,7 @@ namespace Trackr.Api {
         /// <returns>true on success (201), false on failure (400).</returns>
         /// <exception cref="ArgumentException">If the anime list status is set to be "not in list".</exception>
         /// <exception cref="ApiFormatException">if the request times out.</exception>
+        /// <exception cref="WebException">if a connection cannot be established.</exception>
         public async Task<bool> AddAnime(int id, ApiEntry.ListStatuses listStatus = ApiEntry.ListStatuses.Current){
             if(listStatus == ApiEntry.ListStatuses.NotInList) throw new ArgumentException("Cannot add a list item that is set to not be in the list");
             var data = new FormUrlEncodedContent(new [] {
@@ -90,6 +93,7 @@ namespace Trackr.Api {
         /// <param name="id">The MAL ID of the anime to remove</param>
         /// <returns>true on success</returns>
         /// <exception cref="ApiFormatException">if the request times out.</exception>
+        /// <exception cref="WebException">if a connection cannot be established.</exception>
         public async Task<bool> RemoveAnime(int id){
             var response = await _client.DeleteAsync(Path.Combine(UrlBase, "animelist", "delete", id + ".xml"));
             if(response.StatusCode == HttpStatusCode.RequestTimeout)
@@ -103,6 +107,7 @@ namespace Trackr.Api {
         /// <param name="keywords">The search term to use</param>
         /// <returns>A list of all anime found.</returns>
         /// <exception cref="ApiFormatException">if the request times out.</exception>
+        /// <exception cref="WebException">if a connection cannot be established.</exception>
         public async Task<List<Anime>> FindAnime(string keywords){
             List<Anime> results = new List<Anime>();
             var response = await _client.GetAsync(Path.Combine(UrlBase, "anime", "search.xml") + "?q=" + Uri.EscapeDataString(keywords));
@@ -122,6 +127,7 @@ namespace Trackr.Api {
         /// <param name="anime">The anime to update, with updated values.</param>
         /// <returns>true on success</returns>
         /// <exception cref="ApiFormatException">if the request times out.</exception>
+        /// <exception cref="WebException">if a connection cannot be established.</exception>
         public async Task<bool> UpdateAnime(Anime anime){
             if(anime.ListStatus == ApiEntry.ListStatuses.NotInList)
                 return RemoveAnime(anime.Id).Result;
@@ -155,6 +161,7 @@ namespace Trackr.Api {
         /// </summary>
         /// <returns>A list of all anime in the user's list from the server.</returns>
         /// <exception cref="ApiFormatException">if the request times out.</exception>
+        /// <exception cref="WebException">if a connection cannot be established.</exception>
         /// <remarks>Note: The old API used for this method does not contain the synopsis, score, or English fields,
         /// so they will be left as String.Empty/0.0 until they are requested by the user. This is not resolved right
         /// away as to limit the number of API calls to MAL.</remarks>
@@ -180,6 +187,7 @@ namespace Trackr.Api {
         /// <param name="listStatus">The list status of the manga (default is currently reading).</param>
         /// <returns>true on success</returns>
         /// <exception cref="ApiFormatException">if the request times out.</exception>
+        /// <exception cref="WebException">if a connection cannot be established.</exception>
         public async Task<bool> AddManga(int id, ApiEntry.ListStatuses listStatus = ApiEntry.ListStatuses.Current) {
             var data = new FormUrlEncodedContent(new[] {
                 new KeyValuePair<string, string>("data",
@@ -202,6 +210,7 @@ namespace Trackr.Api {
         /// <param name="id">The MAL ID of the manga to remove.</param>
         /// <returns>true on success</returns>
         /// <exception cref="ApiFormatException">if the request times out.</exception>
+        /// <exception cref="WebException">if a connection cannot be established.</exception>
         public async Task<bool> RemoveManga(int id) {
             var response = await _client.DeleteAsync(Path.Combine(UrlBase, "mangalist", "delete", id + ".xml"));
             return response.Content.ReadAsStringAsync().Result == "Deleted";
@@ -231,7 +240,7 @@ namespace Trackr.Api {
         /// <param name="manga">The manga to update with updated list values</param>
         /// <returns>true on success.</returns>
         /// <exception cref="ApiFormatException">if the request times out.</exception>
-
+        /// <exception cref="WebException">if a connection cannot be established.</exception>
         public async Task<bool> UpdateManga(Manga manga){
             Console.WriteLine(manga.Title + " " + manga.ListStatus);
             if(manga.ListStatus == ApiEntry.ListStatuses.NotInList)
@@ -264,6 +273,7 @@ namespace Trackr.Api {
         /// </summary>
         /// <returns>A list of all manga in the user's list</returns>
         /// <exception cref="ApiFormatException">if the request times out.</exception>
+        /// <exception cref="WebException">if a connection cannot be established.</exception>
         /// <remarks>Note: The old API used for this method does not contain the synopsis, score, or English fields,
         /// so they will be left as String.Empty/0.0 until they are requested by the user. This is not resolved right
         /// away as to limit the number of API calls to MAL.</remarks>

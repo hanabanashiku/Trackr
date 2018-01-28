@@ -1,6 +1,10 @@
 ﻿using System;
+using System.Linq;
+using System.Reflection;
 using System.Security.Cryptography;
+using Gdk;
 using Gtk;
+using Image = Gtk.Image;
 using Window = Gtk.Window;
 
 namespace Trackr.Gui.Gtk {
@@ -123,6 +127,7 @@ namespace Trackr.Gui.Gtk {
 			_acctBox1.Add(_acctSw);
 			_acctSw.Add(_acctTree);
 			_acctB.Add(_acctAdd);
+			_acctAdd.Clicked += OnAddAccount;
 			_acctB.Add(_acctRem);
 			_acctbAlign.Add(_acctB);
 			_acctBox1.PackEnd(_acctbAlign, false, false, 0);
@@ -132,9 +137,17 @@ namespace Trackr.Gui.Gtk {
 			_acctStore.AppendValues(string.Empty, api.Username, api.Name);
 		}
 
+		private void OnAddAccount(object o, EventArgs args) {
+			//TODO: Handle results
+			var dialog = new AccountDialog();
+			dialog.Run();
+			dialog.Destroy();
+		}
+
 		private void OnDelete(object o, DeleteEventArgs args) {
 			if(_forced)
 				Application.Quit();
 		}
+
 	}
 }

@@ -1,26 +1,27 @@
-﻿using System;
-using Gtk;
+﻿using Gtk;
 using Trackr.List;
+using Settings = Trackr.Core.Settings;
 
-//using Trackr.Core;
 
 namespace Trackr.Gui.Gtk {
     public static class Program {
 
-        public static Core.Settings Settings;
+        public static Settings Settings; // Reference to Core.Program.UserSettings
         public static AnimeList AnimeList;
         public static MangaList MangaList;
         
         public static void Main(string[] args) {
-            /*try {
-                if(!Core.Settings.Exists) throw new Exception();
-                Settings = Core.Settings.Load();
-            }
-            catch(Exception e) {
-                
-            }*/
+            // If the settings file doesn't exist, force the user to set up account.
+            var force = !Settings.Exists;
+            // This will load the settings file for us or return a new one (if force is true)
+            //TODO: deal with the exception from Settings
+            Core.Program.UserSettings = Settings.Load();
+            Settings = Core.Program.UserSettings;
+            
             Application.Init();
-            var s = new SettingsWindow(true);
+            if(force) {
+                var s = new SettingsWindow(true);
+            }
             Application.Run();
         }
     }

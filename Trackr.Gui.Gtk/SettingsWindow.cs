@@ -52,6 +52,7 @@ namespace Trackr.Gui.Gtk {
 			DeleteEvent += OnDelete;
 			ShowAll();
 
+			FillWindow();
 			if(_forced) _nb.CurrentPage = 1; // Open to Accounts tab
 		}
 
@@ -133,8 +134,25 @@ namespace Trackr.Gui.Gtk {
 			_acctBox1.PackEnd(_acctbAlign, false, false, 0);
 		}
 
-		private void AddToAccountList(Api.Api api) {
-			_acctStore.AppendValues(string.Empty, api.Username, api.Name);
+		private void FillWindow() {
+			// General
+			if (Program.Settings.KeepWindowOnTop) _onTop.Active = true;
+			
+			// Accounts
+			var defAnime = Program.Settings.DefaultAnime.Split('@');
+			var defManga = Program.Settings.DefaultManga.Split('@');
+			foreach (var act in Program.Settings.Accounts) {
+				var defAccount = string.Empty;
+				if (defAnime[0] == act.Key && defAnime[1] == act.Value.Username)
+					defAccount += "A";
+				if (defManga[0] == act.Key && defManga[1] == act.Value.Password)
+					defAccount += "M";
+				AddToAccountList(defAccount, act.Value.Username, act.Key);
+			}
+		}
+		
+		private void AddToAccountList(string defAccount, string username, string api) {
+			_acctStore.AppendValues(defAccount, username, api);
 		}
 
 		private void OnAddAccount(object o, EventArgs args) {

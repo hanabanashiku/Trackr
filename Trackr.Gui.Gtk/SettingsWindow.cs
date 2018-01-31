@@ -27,6 +27,7 @@ namespace Trackr.Gui.Gtk {
 			_forced = forced;
 			Title = "Settings";
 			DefaultSize = new Size(500, 450);
+			Parent = Program.Win;
 			DestroyWithParent = true;
 			Icon = IconTheme.Default.LoadIcon(Stock.Preferences, 64, IconLookupFlags.UseBuiltin);
 			Role = "settings";

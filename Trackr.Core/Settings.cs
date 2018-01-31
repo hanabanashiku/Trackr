@@ -39,12 +39,26 @@ namespace Trackr.Core {
 		/// If enabled, the main window will be on top of all other windows.
 		/// </summary>
 		public bool KeepWindowOnTop { get; set; }
+		
+		/// <summary>
+		/// If enabled, the main window will be shown at startup.
+		/// </summary>
+		public bool ShowWindowOnStart { get; set; }
+		
+		/// <summary>
+		/// If enabled, the main window will close to system tray instead of closing the app.
+		/// </summary>
+		public bool MinimizeToTray { get; set; }
 
 		private Settings() {
 			Entropy = new byte[20];
 			using(var rng = new RNGCryptoServiceProvider())
 				rng.GetBytes(Entropy);
 			Accounts = new List<Account>();
+
+			KeepWindowOnTop = false;
+			ShowWindowOnStart = true;
+			MinimizeToTray = true;
 		}
 
 		/// <summary>
@@ -78,6 +92,14 @@ namespace Trackr.Core {
 				var f = new BinaryFormatter();
 				f.Serialize(fs, this);
 			}
+		}
+
+		/// <summary>
+		/// Delete the settings file
+		/// </summary>
+		public static void Delete() {
+			if(File.Exists(FileName))
+				File.Delete(FileName);
 		}
 
 		~Settings() {

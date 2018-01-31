@@ -11,9 +11,9 @@ namespace Trackr.Api {
 	public class AniList : Api, IAnime, IManga {
 		public const string Identifier = "AniList";
 
-		public new string Name { get; } = Identifier;
+		public override string Name { get; } = Identifier;
 
-		public new string Username { get; private set; }
+		public override string Username { get; }
 
 		// TODO: Find a more secure way of packaging this information
 		private const string ClientId = "nolewding-p0hl4";
@@ -68,7 +68,7 @@ namespace Trackr.Api {
 		/// Verify the user's credentials and pulls the username of the user.
 		/// </summary>
 		/// <returns>true on success.</returns>
-		public async Task<bool> VerifyCredentials(){
+		public override async Task<bool> VerifyCredentials(){
 			await AuthenticationCheck();
 			var msg = new HttpRequestMessage(HttpMethod.Get, "user");
 			msg.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _accessToken);
@@ -78,7 +78,7 @@ namespace Trackr.Api {
 				return false;
 			
 			var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
-			Username = json["display_name"];
+			//Username = json["display_name"];
 			return true;
 		}
 

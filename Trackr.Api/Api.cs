@@ -1,4 +1,5 @@
 ﻿﻿using System;
+ using System.Threading.Tasks;
 
 namespace Trackr.Api {
     /// <summary>
@@ -8,16 +9,22 @@ namespace Trackr.Api {
         /// <summary>
         /// The name of the current API.
         /// </summary>
-        public string Name;
+        public abstract string Name { get; }
 
         /// <summary>
         /// The username of the user logged into the API.
         /// </summary>
-        public string Username;
+        public abstract string Username { get; }
 
         protected static string UserAgent =
             "Trackr/" + System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString() +
             " (" + Environment.OSVersion.Platform.ToString() + ")";
+
+        /// <summary>
+        /// Verify the user's API credentials.
+        /// </summary>
+        /// <returns>true for valid credentials.</returns>
+        public abstract Task<bool> VerifyCredentials();
 
     }
 }

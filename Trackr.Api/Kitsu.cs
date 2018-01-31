@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 
 using Trackr.Core;
 
+//TODO: Find out why this class isn't working
 namespace Trackr.Api {
     /// <summary>
     /// A class for handling instances of Kitsu (formerly Hummingbird) accounts.
@@ -18,8 +19,8 @@ namespace Trackr.Api {
     public class Kitsu : Api, IAnime, IManga {
 		public const string Identifier = "Kitsu";
 
-        public new string Name { get; } = Identifier;
-        public new string Username => _clientLogin.Username;
+        public override string Name { get; } = Identifier;
+        public override string Username => _clientLogin.Username;
 
         private const string ContentType = "application/vnd.api+json";
         private const string AuthUrl = "https://kitsu.io/api/oauth/token";
@@ -71,7 +72,7 @@ namespace Trackr.Api {
         /// <returns>True on success (200OK), false on failure (400, 401)</returns>
         /// <remarks>Authentication will be done implicitly  after the token expires.</remarks>
         /// <remarks>This method must be run at least once to resolve the userid of the user.</remarks>
-        public async Task<bool> VerifyCredentials(){
+        public override async Task<bool> VerifyCredentials(){
             if(await Authenticate() == false)
                 return false;
 

@@ -1,15 +1,17 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
-using System.Security.Cryptography;
 using Gdk;
 using Gtk;
+using Trackr.Core;
 using Image = Gtk.Image;
 using Window = Gtk.Window;
 
 namespace Trackr.Gui.Gtk {
 	public class SettingsWindow : Window {
-
+//TODO: Convert this to a dialog box :(
+//TODO: Add Apply button
+//TODO: Remove button
 		private readonly bool _forced;
 
 		private VBox _container;
@@ -28,11 +30,15 @@ namespace Trackr.Gui.Gtk {
 		private TreeView _acctTree;
 		private ScrolledWindow _acctSw;
 		private Label _acctLabel;
-		private Button _acctAdd, _acctRem;
+		private Button _acctAdd, _acctEdit, _acctRem;
 		private HBox _acctB;
 		private Alignment _acctbAlign;
 			
 		private Button _ok, _cancel;
+
+		private List<Account> _accountList;
+		private Account _defAnime;
+		private Account _defManga;
 		
 		/// <summary>
 		/// Spawn a new Settings dialog box
@@ -40,8 +46,9 @@ namespace Trackr.Gui.Gtk {
 		/// <param name="forced">Set to true if there was no settings definiton beforehand.</param>
 		public SettingsWindow(bool forced) : base("Settings") {
 			_forced = forced;
-			DefaultSize = new Gdk.Size(500, 450);
+			DefaultSize = new Size(500, 450);
 			DestroyWithParent = true;
+			Icon = IconTheme.Default.LoadIcon(Stock.Preferences, 64, IconLookupFlags.UseBuiltin);
 			Role = "settings";
 			WindowPosition = _forced ? WindowPosition.Center : WindowPosition.CenterOnParent;
 
@@ -85,6 +92,7 @@ namespace Trackr.Gui.Gtk {
 			_acctB = new HBox(true, 3);
 			_acctbAlign = new Alignment(1, 1, 0, 0);
 			_acctAdd = new Button(new Image(Stock.Add, IconSize.Button));
+			_acctEdit = new  Button(new Image(Stock.Edit, IconSize.Button));
 			_acctRem = new Button(new Image(Stock.Remove, IconSize.Button));
 		}
 
@@ -118,17 +126,18 @@ namespace Trackr.Gui.Gtk {
 			//Add the tree columns
 			var i = 0;
 			foreach(var x in Enum.GetNames(typeof(Columns))) {
-				var crt = new CellRendererText();
-				var c = new TreeViewColumn(x, crt, "text", i) {SortColumnId = i};
-				_acctTree.AppendColumn(c);
+				_acctTree.AppendColumn(x, new CellRendererText(), "text", i);
 				i++;
 			}
 			_accounts.Add(_acctBox1);
 			_acctBox1.PackStart(_acctLabel, false, false, 10);
 			_acctBox1.Add(_acctSw);
 			_acctSw.Add(_acctTree);
+			_acctTree.RowActivated += OnRowActivated;
 			_acctB.Add(_acctAdd);
 			_acctAdd.Clicked += OnAddAccount;
+			_acctB.Add(_acctEdit);
+			_acctEdit.Clicked += OnEditClick;
 			_acctB.Add(_acctRem);
 			_acctbAlign.Add(_acctB);
 			_acctBox1.PackEnd(_acctbAlign, false, false, 0);
@@ -138,33 +147,93 @@ namespace Trackr.Gui.Gtk {
 			// General
 			if (Program.Settings.KeepWindowOnTop) _onTop.Active = true;
 			
+			
 			// Accounts
-			var defAnime = Program.Settings.DefaultAnime.Split('@');
-			var defManga = Program.Settings.DefaultManga.Split('@');
-			foreach (var act in Program.Settings.Accounts) {
-				var defAccount = string.Empty;
-				if (defAnime[0] == act.Key && defAnime[1] == act.Value.Username)
-					defAccount += "A";
-				if (defManga[0] == act.Key && defManga[1] == act.Value.Password)
-					defAccount += "M";
-				AddToAccountList(defAccount, act.Value.Username, act.Key);
-			}
-		}
-		
-		private void AddToAccountList(string defAccount, string username, string api) {
-			_acctStore.AppendValues(defAccount, username, api);
+			// Here we are going to create a copy of the account list and update if necessary
+			_accountList = new List<Account>(Program.Settings.Accounts.Count);
+			Program.Settings.Accounts.ForEach(x => _accountList.Add(new Account(x)));
+			_defAnime = Program.Settings.DefaultAnime == null ? null : new Account(Program.Settings.DefaultAnime);
+			_defManga = Program.Settings.DefaultManga == null ? null : new Account(Program.Settings.DefaultManga);
+			
+			foreach (var act in _accountList)
+				AddToStore(act);
 		}
 
+		// get a string representing the default accounts
+		private string GetDefaultAccounts(Account a) {
+			var defAccount = string.Empty;
+			if (_defAnime == a)
+				defAccount += "A";
+			if (_defManga == a)
+				defAccount += "M";	
+			return defAccount;
+		}
+		
+		// Add the account to the table
+		private void AddToStore(Account a) {
+			var defAccount = GetDefaultAccounts(a);
+			 _acctStore.AppendValues(defAccount, a.Username, a.Provider);
+			
+		}
+
+		// Prompt the user to add a new account
 		private void OnAddAccount(object o, EventArgs args) {
-			//TODO: Handle results
 			var dialog = new AccountDialog();
-			dialog.Run();
+			if(dialog.Run() == (int)ResponseType.Accept) {
+				// it's not already there
+				if(!_accountList.Contains(dialog.Result)) {
+					_accountList.Add(dialog.Result);
+					AddToStore(dialog.Result);
+				}
+				else { // whoops
+					using(var md = new MessageDialog(null, DialogFlags.DestroyWithParent, MessageType.Error, ButtonsType.Ok,
+						"That account already exists.")) {
+						md.WindowPosition = WindowPosition.Center;
+						md.Run();
+						md.Destroy();
+					}
+				}
+			}
+			dialog.Destroy();
+		}
+		
+		// We want to edit an entry!
+		private void EditAccount(TreeModel model, TreeIter i) {
+			var a = _accountList.First(x =>
+				(string) model.GetValue(i, (int) Columns.Username) == x.Username &&
+				(string) model.GetValue(i, (int) Columns.Service) == x.Provider);
+			var dialog = new AccountDialog(a.Username, a.Credentials, a.Provider, GetDefaultAccounts(a));
+			if(dialog.Run() == (int)ResponseType.Accept) {
+				a.Credentials.Password = dialog.Result.Credentials.Password;
+				if(dialog.DefaultAnime) _defAnime = a;
+				else if(_defAnime == a) _defAnime = null; // We have deselected this account as the default!
+				if(dialog.DefaultManga) _defManga = a;
+				else if(_defManga == a) _defManga = null; // We have deselected this account asthe default!
+				model.SetValue(i, (int)Columns.Used, GetDefaultAccounts(a));
+			}
 			dialog.Destroy();
 		}
 
+		private void OnRowActivated(object o, RowActivatedArgs args) { // Through row click
+			var model = ((TreeView) o).Model;
+			TreeIter i;
+
+			if(!model.GetIter(out i, args.Path)) return;
+			EditAccount(model, i);
+		}
+
+		private void OnEditClick(object o, EventArgs args) { // Through button
+			var s = _acctTree.Selection;
+			TreeIter i;
+			s.GetSelected(out i);
+			EditAccount(_acctTree.Model, i);
+		}
+
 		private void OnDelete(object o, DeleteEventArgs args) {
-			if(_forced)
+			if(_forced) {
 				Application.Quit();
+				Environment.Exit(0);
+			}
 		}
 
 	}

@@ -23,11 +23,11 @@ namespace Trackr.Api {
         /// <summary>
         /// The name of the current API.
         /// </summary>
-        public new string Name { get; } = Identifier;
+        public override string Name { get; } = Identifier;
         /// <summary>
         /// The username of the user logged into the API.
         /// </summary>
-        public new string Username => _clientLogin.Username;
+        public override string Username => _clientLogin.Username;
 
         private const string UrlBase = "https://myanimelist.net/api/";
         private const string OldUrlBase = "https://myanimelist.net/malappinfo.php";
@@ -55,7 +55,7 @@ namespace Trackr.Api {
         /// <returns>true if credentials are valid</returns>
         /// <exception cref="ApiFormatException">if the request times out.</exception>
         /// <exception cref="WebException">if a connection cannot be established.</exception>
-        public async Task<bool> VerifyCredentials(){
+        public override async Task<bool> VerifyCredentials(){
             var response = await _client.GetAsync(Path.Combine(UrlBase, "account", "verify_credentials.xml"));
             if(response.StatusCode == HttpStatusCode.RequestTimeout)
                 throw new ApiRequestException("The request timed out.");

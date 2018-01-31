@@ -5,19 +5,33 @@ using Trackr.Core;
 
 namespace Trackr.Gui.Gtk {
 	/// <summary>
-	/// A dialog box used to add an account to Trackr's settings
+	/// A dialog box used to add an account to Trackr's settings or edit an existing one
 	/// </summary>
+	/// <remarks>This dialog will respond with Accept if the account can be added,
+	/// Reject if it cannot, or Cancel if the user cancelled the operation.</remarks>
 	internal class AccountDialog : Dialog {
-		// TODO: Handle editing accounts (maybe with another constructor or seperate class?
-		// TODO: Allow for making accounts the default account
 		/// <summary>
 		/// The resulting account
 		/// </summary>
 		public Account Result;
+		/// <summary>
+		/// This account should be the default anime account.
+		/// </summary>
+		public bool DefaultAnime;
+		/// <summary>
+		/// This account should be the default manga account.
+		/// </summary>
+		public bool DefaultManga;
+		
 		private ComboBox _type;
 		private Entry _username, _password;
 		private Button _okButton, _cancelButton;
+		private CheckButton _defAnimeCheck, _defMangaCheck;
+		private readonly string[] _options = {"MyAnimeList", "Kitsu", "AniList"};
 
+		/// <summary>
+		/// A constructor for account adding.
+		/// </summary>
 		public AccountDialog() {
 			Title = "Add Account";
 			BorderWidth = 10;
@@ -26,14 +40,33 @@ namespace Trackr.Gui.Gtk {
 			Build();
 		}
 
+		/// <summary>
+		/// A constructor for account editing.
+		/// </summary>
+		public AccountDialog(string username, UserPass cred, string provider, string def) : this() {
+			Title = "Edit Account";
+			_username.Text = username;
+			_username.Sensitive = false;
+			_password.Text = cred.Password; // Does not allow you to copy password out
+			_type.Active = Array.FindIndex(_options, x => x.Equals(provider));
+			_type.Sensitive = false;
+			if(def.Contains("A"))
+				_defAnimeCheck.Active = true;
+			if(def.Contains("M"))
+				_defMangaCheck.Active = true;
+		}
+
 		private void Build() {
-			string[] options = {"MyAnimeList", "Kitsu", "AniList"};
-			_type = new ComboBox(options);
-			_type.Changed += OnTextChange;
+			_type = new ComboBox(_options);
+			_type.Changed += OnProviderChange;
 			_username = new Entry();
 			_username.Changed += OnTextChange;
 			_password = new Entry() { Visibility =  false };
 			_password.Changed += OnTextChange;
+			_defAnimeCheck = new CheckButton("Use this account for managing anime") { Name = "defAnime", Sensitive = false };
+			_defAnimeCheck.Toggled += OnToggle;
+			_defMangaCheck = new CheckButton("Use this account for managing manga") { Name = "defManga", Sensitive = false };
+			_defMangaCheck.Toggled += OnToggle;
 			_okButton = new Button("OK");
 			_okButton.SetSizeRequest(70, 30);
 			_okButton.Clicked += OnOkButton;
@@ -48,16 +81,18 @@ namespace Trackr.Gui.Gtk {
 			VBox.Add(hb1);
 
 			var hb2 = new HBox();
-			hb2.PackStart(new Label("Password"), false, false, 7);
+			hb2.PackStart(new Label("Password"), false, true, 7);
 			hb2.Add(_password);
 			VBox.Add(hb2);
 
+			var bb = new VButtonBox {_defAnimeCheck, _defMangaCheck};
+			VBox.Add(bb);
+			
 			var hb3 = new HBox();
 			hb3.PackStart(new Label("Type"), false, false, 7);
 			hb3.Add(_type);
 			VBox.Add(hb3);
 				
-			var align = new Alignment(1, 1, 0, 0);
 			ActionArea.Add(_okButton);
 			ActionArea.Add(_cancelButton);
 			ShowAll();
@@ -69,21 +104,55 @@ namespace Trackr.Gui.Gtk {
 				_okButton.Sensitive = false;
 			else _okButton.Sensitive = true;
 		}
+
+		private void OnProviderChange(object o, EventArgs args) {
+			switch(_type.ActiveText) {
+					case "MyAnimeList": case "Kitsu": case "AniList":
+						_defAnimeCheck.Sensitive = true;
+						_defMangaCheck.Sensitive = true;
+						break;
+				default:
+					_defAnimeCheck.Active = false;
+					_defAnimeCheck.Sensitive = false;
+					_defMangaCheck.Active = false;
+					_defMangaCheck.Sensitive = false;
+					break;
+			}
+			OnTextChange(o, args);
+		}
+
+		// Check if we should update the defaults
+		private void OnToggle(object o, EventArgs e) {
+			var box = (CheckButton) o;
+			switch(box.Name) {
+				case "defAnime":
+					DefaultAnime = _defAnimeCheck.Active;
+					break;
+				case "defManga":
+					DefaultManga = _defMangaCheck.Active;
+					break;
+			}
+		}
 		
 		private async void OnOkButton(object o, EventArgs args) {
 			_okButton.Sensitive = false;
 			switch(_type.ActiveText) {
 				
-				case "MyAnimeList":
+				case "MyAnimeList": case "Kitsu":
 					var cred = new UserPass(_username.Text, _password.Text);
-					var api = new MyAnimeList(cred);
+					Api.Api api;
+					if(_type.ActiveText == "MyAnimeList")
+						api = new MyAnimeList(cred);
+					else //if(_type.ActiveText == "Kitsu")
+						api = new Kitsu(cred);
 					bool res;
 					try {
-						res = api.VerifyCredentials().Result;
+						res = await api.VerifyCredentials();
 					}
 					// ApiRequestException, WebException...
 					catch(Exception) {
-						var ed = new MessageDialog(null, DialogFlags.DestroyWithParent, MessageType.Error, ButtonsType.OkCancel, "The request has timed out.");
+						var ed = new MessageDialog(null, DialogFlags.DestroyWithParent, MessageType.Error, ButtonsType.OkCancel,
+							"The request has timed out.") {WindowPosition = WindowPosition.Center};
 						var ret = ed.Run();
 						ed.Destroy();
 						if(ret == (int)ResponseType.Cancel)
@@ -103,8 +172,9 @@ namespace Trackr.Gui.Gtk {
 						ed.Destroy();
 						if(ret == (int)ResponseType.Cancel)
 							Respond(ResponseType.Reject);
+						else _okButton.Sensitive = true;
+
 					}
-					_okButton.Sensitive = true;
 					break;
 					
 				default:

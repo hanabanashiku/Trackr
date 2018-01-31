@@ -11,8 +11,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Trackr.Api", "Trackr.Api\Tr
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Trackr.Torrent", "Trackr.Torrent\Trackr.Torrent.csproj", "{F8ADCA4B-AB91-4A72-BDE9-8835F8A2DAD6}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Trackr.Gui.Common", "Trackr.Gui.Common\Trackr.Gui.Common.csproj", "{5B775C46-9451-4F73-B3DD-2861CCBB5121}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Trackr.Gui.Gtk", "Trackr.Gui.Gtk\Trackr.Gui.Gtk.csproj", "{32A8C443-D4FD-4FF4-BEB3-F2F163880E50}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Trackr.Core", "Trackr.Core\Trackr.Core.csproj", "{6B731DCF-8E55-4289-B916-488E48E84029}"
@@ -38,10 +36,6 @@ Global
 		{F9B6CBEB-5BA2-4896-838E-1B2E190DA74E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F9B6CBEB-5BA2-4896-838E-1B2E190DA74E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F9B6CBEB-5BA2-4896-838E-1B2E190DA74E}.Release|Any CPU.Build.0 = Release|Any CPU
-		{5B775C46-9451-4F73-B3DD-2861CCBB5121}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{5B775C46-9451-4F73-B3DD-2861CCBB5121}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{5B775C46-9451-4F73-B3DD-2861CCBB5121}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{5B775C46-9451-4F73-B3DD-2861CCBB5121}.Release|Any CPU.Build.0 = Release|Any CPU
 		{32A8C443-D4FD-4FF4-BEB3-F2F163880E50}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{32A8C443-D4FD-4FF4-BEB3-F2F163880E50}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{32A8C443-D4FD-4FF4-BEB3-F2F163880E50}.Release|Any CPU.ActiveCfg = Release|Any CPU

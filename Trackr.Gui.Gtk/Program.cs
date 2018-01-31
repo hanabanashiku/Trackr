@@ -19,9 +19,9 @@ namespace Trackr.Gui.Gtk {
             Settings = Core.Program.UserSettings;
             
             Application.Init();
-            if(force) {
+            //if(force) {
                 var s = new SettingsWindow(true);
-            }
+            //}
             Application.Run();
         }
     }

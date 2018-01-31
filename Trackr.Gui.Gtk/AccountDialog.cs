@@ -136,7 +136,7 @@ namespace Trackr.Gui.Gtk {
 			}
 		}
 		
-		private async void OnOkButton(object o, EventArgs args) {
+		private void OnOkButton(object o, EventArgs args) {
 			_okButton.Sensitive = false;
 			switch(_type.ActiveText) {
 				
@@ -149,7 +149,7 @@ namespace Trackr.Gui.Gtk {
 						api = new Kitsu(cred);
 					bool res;
 					try {
-						res = await api.VerifyCredentials();
+						res = api.VerifyCredentials().Result;
 					}
 					// ApiRequestException, WebException...
 					catch(Exception) {

@@ -1,11 +1,10 @@
 ﻿using System;
+using System.Linq;
 using Gdk;
 using Gtk;
 
 namespace Trackr.Gui.Gtk {
-	public class SettingsWindow : Dialog {
-//TODO: Add Apply button
-		
+	public class SettingsWindow : Dialog {		
 		// If the user has never seen this window before, we want to make sure the 
 		private readonly bool _forced; 
 
@@ -57,9 +56,9 @@ namespace Trackr.Gui.Gtk {
 			_hAlign = new Alignment(1, 1, 0, 0);
 
 			// The buttons that go on the bottom
-			_ok = new Button("OK");
-			_ok.CanDefault = true;
+			_ok = new Button("OK") {CanDefault = true};
 			_cancel = new Button("Cancel");
+			_apply = new Button("Apply");
 
 			// General Tab
 			_onTop = new CheckButton("Keep Window on Top");
@@ -82,10 +81,17 @@ namespace Trackr.Gui.Gtk {
 			_hAlign.SetPadding(0, 5, 0, 5);
 			_hAlign.Add(_buttons);
 			_buttons.Add(_ok);
+			_ok.Clicked += delegate {
+				Apply();
+				Respond(ResponseType.Accept);
+				Destroy();
+			};
 			_ok.GrabDefault();
 			_ok.SetSizeRequest(70, 30);
 			_buttons.Add(_cancel);
 			_cancel.Clicked += delegate { Respond(ResponseType.Cancel); };
+			_buttons.Add(_apply);
+			_apply.Clicked += delegate { Apply(); };
 			
 			// General tab
 			_general.Add(_onTop);
@@ -104,13 +110,28 @@ namespace Trackr.Gui.Gtk {
 		private void Apply() {
 			// General
 			Program.Settings.KeepWindowOnTop = _onTop.Active;
-			
-			//TODO
+
+			// Sync accounts
+			var accounts = Program.Settings.Accounts;
+			// Remove all accounts that don't have an account in our copy with the same Username and Provider.
+			accounts.RemoveAll(x => !_accounts.AccountList.Contains(x));
+			// Add all accounts that are not yet contained in our settings list.
+			_accounts.AccountList.Where(x => !accounts.Contains(x)).ToList().ForEach(x => accounts.Add(x));
+			foreach(var a in accounts) {
+				var b = _accounts.AccountList.First(x => x == a);
+				if(a.Credentials.Password != b.Credentials.Password)
+					a.Credentials.Password = b.Credentials.Password;
+			}
+			// Set the default accounts
+			if(Program.Settings.DefaultAnime != _accounts.DefAnime)
+				Program.Settings.DefaultAnime = _accounts.DefAnime == null ? null : accounts.First(x => x == _accounts.DefAnime);
+			if(Program.Settings.DefaultManga != _accounts.DefManga)
+				Program.Settings.DefaultManga = _accounts.DefManga == null ? null : accounts.First(x => x == _accounts.DefManga);
 		}
 
 		// The user clicked the close button
 		private void OnDelete(object o, DeleteEventArgs args) {
-			if(_forced) {
+			if(_forced) { 
 				Application.Quit();
 				Environment.Exit(0);
 			}

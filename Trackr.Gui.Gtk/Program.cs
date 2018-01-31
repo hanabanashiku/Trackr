@@ -6,6 +6,8 @@ using Settings = Trackr.Core.Settings;
 namespace Trackr.Gui.Gtk {
     public static class Program {
 
+        public static SystemTray Tray;
+        public static MainWindow Win;
         public static Settings Settings; // Reference to Core.Program.UserSettings
         public static AnimeList AnimeList;
         public static MangaList MangaList;
@@ -19,11 +21,11 @@ namespace Trackr.Gui.Gtk {
             Settings = Core.Program.UserSettings;
             
             Application.Init();
-            //if(force) {
+            if(force) {
                 var s = new SettingsWindow(true);
             s.Run();
             s.Destroy();
-            //}
+            }
             Application.Run();
         }
     }

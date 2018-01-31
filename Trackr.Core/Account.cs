@@ -6,16 +6,6 @@ namespace Trackr.Core {
 	/// </summary>
 	[Serializable]
 	public class Account {
-		
-		public override int GetHashCode() {
-			unchecked {
-				var hashCode = (Provider != null ? Provider.GetHashCode() : 0);
-				hashCode = (hashCode * 397) ^ (Username != null ? Username.GetHashCode() : 0);
-				hashCode = (hashCode * 397) ^ (Credentials != null ? Credentials.GetHashCode() : 0);
-				return hashCode;
-			}
-		}
-
 		/// <summary>
 		/// The API Provider name.
 		/// </summary>
@@ -61,7 +51,17 @@ namespace Trackr.Core {
 		public override bool Equals(object obj) {
 			if(ReferenceEquals(null, obj)) return false;
 			if(ReferenceEquals(this, obj)) return true;
-			return obj.GetType() == this.GetType() && Equals((Account) obj);
+			return obj.GetType() == GetType() && Equals((Account) obj);
+		}
+		
+		public override int GetHashCode() {
+			unchecked {
+				// ReSharper disable NonReadonlyMemberInGetHashCode
+				var hashCode = (Provider != null ? Provider.GetHashCode() : 0);
+				hashCode = (hashCode * 397) ^ (Username != null ? Username.GetHashCode() : 0);
+				hashCode = (hashCode * 397) ^ (Credentials != null ? Credentials.GetHashCode() : 0);
+				return hashCode;
+			}
 		}
 	}
 }

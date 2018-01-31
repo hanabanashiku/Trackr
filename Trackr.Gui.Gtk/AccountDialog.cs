@@ -69,6 +69,7 @@ namespace Trackr.Gui.Gtk {
 			_defMangaCheck.Toggled += OnToggle;
 			_okButton = new Button("OK");
 			_okButton.SetSizeRequest(70, 30);
+			_okButton.CanDefault = true;
 			_okButton.Clicked += OnOkButton;
 			_okButton.Sensitive = false;
 			_cancelButton = new Button("Cancel");
@@ -94,6 +95,7 @@ namespace Trackr.Gui.Gtk {
 			VBox.Add(hb3);
 				
 			ActionArea.Add(_okButton);
+			_okButton.GrabDefault(); // Activates when you hit enter
 			ActionArea.Add(_cancelButton);
 			ShowAll();
 		}

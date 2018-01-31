@@ -21,6 +21,8 @@ namespace Trackr.Gui.Gtk {
             Application.Init();
             //if(force) {
                 var s = new SettingsWindow(true);
+            s.Run();
+            s.Destroy();
             //}
             Application.Run();
         }

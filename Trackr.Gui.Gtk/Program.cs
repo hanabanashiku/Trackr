@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Reflection;
 using Gdk;
 using Gtk;
 using Trackr.List;
@@ -8,7 +9,8 @@ using Settings = Trackr.Core.Settings;
 namespace Trackr.Gui.Gtk {
     public static class Program {
         public const string AppName = "Trackr";
-        public static readonly Pixbuf AppIcon = new Pixbuf("trackr.png");
+        public static readonly Pixbuf AppIcon = Pixbuf.LoadFromResource("Trackr.Gui.Gtk.Resources.trackr.png");
+        public const string AppVersion = "0.0";
         
         private static SystemTray _tray;
         public static MainWindow Win;
@@ -16,8 +18,7 @@ namespace Trackr.Gui.Gtk {
         public static AnimeList AnimeList;
         public static MangaList MangaList;
         
-        public static void Main(string[] args) {
-            Console.WriteLine("Hello world!");
+        public static void Main(string[] args) {            
             // If the settings file doesn't exist, force the user to set up account.
             var force = !Settings.Exists;
             // This will load the settings file for us or return a new one (if force is true)
@@ -42,6 +43,13 @@ namespace Trackr.Gui.Gtk {
             _tray = new SystemTray();
             Win = new MainWindow { Visible = Settings.ShowWindowOnStart };
             Application.Run();
+        }
+
+        /// <summary>
+        /// Called whenever the settings object has been modified.
+        /// </summary>
+        public static void SettingsChanged() {
+            Win.KeepAbove = Settings.KeepWindowOnTop;
         }
     }
 }

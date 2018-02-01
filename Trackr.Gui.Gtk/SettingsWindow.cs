@@ -22,16 +22,20 @@ namespace Trackr.Gui.Gtk {
 		/// <summary>
 		/// Spawn a new Settings dialog box
 		/// </summary>
+		/// <remarks>This dialog box will change the settings values on its own if they are applied.</remarks>
 		/// <param name="forced">Set to true if there was no settings definiton beforehand.</param>
 		public SettingsWindow(bool forced){
 			_forced = forced;
 			Title = "Settings";
 			DefaultSize = new Size(500, 450);
-			Parent = Program.Win;
-			DestroyWithParent = true;
+			if(Program.Win != null && Program.Win.Visible) {
+				TransientFor = Program.Win;
+				DestroyWithParent = true;
+				WindowPosition = WindowPosition.CenterOnParent;
+			}
+			else WindowPosition = WindowPosition.Center;
 			Icon = IconTheme.Default.LoadIcon(Stock.Preferences, 64, IconLookupFlags.UseBuiltin);
 			Role = "settings";
-			WindowPosition = _forced ? WindowPosition.Center : WindowPosition.CenterOnParent;
 
 			Instantiate();
 			Build();
@@ -85,12 +89,13 @@ namespace Trackr.Gui.Gtk {
 			_ok.Clicked += delegate {
 				Apply();
 				Respond(ResponseType.Accept);
-				Destroy();
 			};
 			_ok.GrabDefault();
 			_ok.SetSizeRequest(70, 30);
 			_buttons.Add(_cancel);
-			_cancel.Clicked += delegate { Respond(ResponseType.Cancel); };
+			_cancel.Clicked += delegate { 
+				Respond(ResponseType.Cancel);
+			};
 			_buttons.Add(_apply);
 			_apply.Clicked += delegate { Apply(); };
 			

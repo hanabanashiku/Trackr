@@ -62,7 +62,7 @@ namespace Trackr.Api {
         /// <summary>
         /// The last episode the user completed.
         /// </summary>
-        public int CurrentEpisode { get; set; } = 0;
+        public int CurrentEpisode { get; set; } // defualts to 0
 
         /// <summary>
         /// The user's series notes.
@@ -129,7 +129,8 @@ namespace Trackr.Api {
             return !(a == b);
         }
 
-        public override bool Equals(object o){
+        public override bool Equals(object o) {
+            if(o.GetType() != typeof(Anime)) return false;
             var a = o as Anime;
             return a != null && Equals(a);
         }

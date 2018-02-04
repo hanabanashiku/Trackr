@@ -34,7 +34,7 @@ namespace Trackr.Gui.Gtk {
 				WindowPosition = WindowPosition.CenterOnParent;
 			}
 			else WindowPosition = WindowPosition.Center;
-			Icon = IconTheme.Default.LoadIcon(Stock.Preferences, 64, IconLookupFlags.UseBuiltin);
+			Icon = IconTheme.Default.LoadIcon(Stock.Preferences, 16, IconLookupFlags.UseBuiltin);
 			Role = "settings";
 
 			Instantiate();

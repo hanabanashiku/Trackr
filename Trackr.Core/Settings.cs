@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.Serialization;
 using System.Security.Cryptography;
 using System.Runtime.Serialization.Formatters.Binary;
 
@@ -14,6 +15,8 @@ namespace Trackr.Core {
 			                                      Program.AppDataPath, "settings");
 
 		public byte[] Entropy { get; }
+
+		public enum TitleDisplays {Romaji, Japanese, English }
 
 		/// <summary>
 		/// Whether or not the settings file exists
@@ -49,6 +52,11 @@ namespace Trackr.Core {
 		/// If enabled, the main window will close to system tray instead of closing the app.
 		/// </summary>
 		public bool MinimizeToTray { get; set; }
+		
+		/// <summary>
+		/// Set the method for displaying titles (default is romaji).
+		/// </summary>
+		public TitleDisplays TitleDisplay { get; set; }
 
 		private Settings() {
 			Entropy = new byte[20];
@@ -59,6 +67,8 @@ namespace Trackr.Core {
 			KeepWindowOnTop = false;
 			ShowWindowOnStart = true;
 			MinimizeToTray = true;
+			
+			TitleDisplay = TitleDisplays.Romaji;
 		}
 
 		/// <summary>
@@ -72,7 +82,8 @@ namespace Trackr.Core {
 				var f = new BinaryFormatter();
 				fs = new FileStream(FileName, FileMode.Open);
 				return (Settings)f.Deserialize(fs);
-			} catch(IOException) {
+			} catch(Exception e) {
+				Console.WriteLine("Warning: " + e.Message);
 				return new Settings();
 			} finally {
 				fs?.Close();

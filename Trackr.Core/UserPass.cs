@@ -8,6 +8,7 @@ namespace Trackr.Core {
     /// <summary>
     /// A class for securly storing usernames and passwords for various API calls.
     /// </summary>
+    [Serializable]
     public class UserPass {
 
         /// <summary>

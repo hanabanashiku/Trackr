@@ -2,6 +2,8 @@
 using System.Reflection;
 using Gdk;
 using Gtk;
+using Trackr.Api;
+using Trackr.Core;
 using Trackr.List;
 using Settings = Trackr.Core.Settings;
 
@@ -39,6 +41,10 @@ namespace Trackr.Gui.Gtk {
                     if (res != (int) ResponseType.Accept)
                         Environment.Exit(0);
                 }
+            // Get our lists ready (any sync them)
+            AnimeList = GetAnimeList();
+            MangaList = GetMangaList();
+            
             // we have a settings file! Spawn our notification icon and window
             _tray = new SystemTray();
             Win = new MainWindow { Visible = Settings.ShowWindowOnStart };
@@ -50,6 +56,43 @@ namespace Trackr.Gui.Gtk {
         /// </summary>
         public static void SettingsChanged() {
             Win.KeepAbove = Settings.KeepWindowOnTop;
+        }
+        
+        
+
+        /// <summary>
+        /// Return the correct anime list based on the default value.
+        /// </summary>
+        /// <returns></returns>
+        // TODO: Handle instantiation errors
+        public static AnimeList GetAnimeList() {
+            var act = Settings.DefaultAnime;
+            if(act == null) return null;
+            switch(act.Provider) {
+                    case "MyAnimeList":
+                        return AnimeList.Load(new MyAnimeList(act.Credentials));
+                    case "Kitsu":
+                        return AnimeList.Load(new Kitsu(act.Credentials));
+                    case "AniList":
+                        throw new NotImplementedException();
+                    default:
+                        return null;
+            }
+        }
+
+        public static MangaList GetMangaList() {
+            var act = Settings.DefaultManga;
+            if(act == null) return null;
+            switch(act.Provider) {
+                case "MyAnimeList":
+                        return MangaList.Load(new MyAnimeList(act.Credentials));
+                case "Kitsu":
+                        return MangaList.Load(new Kitsu(act.Credentials));
+                case "AniList":
+                    throw new NotImplementedException();
+                 default: 
+                     return null;
+            }
         }
     }
 }

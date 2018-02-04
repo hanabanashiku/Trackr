@@ -1,20 +1,28 @@
 ﻿using System;
-using System.Net;
-using System.Text;
+using System.Dynamic;
+using Gdk;
 using Gtk;
+using Image = Gtk.Image;
+using Window = Gtk.Window;
 
 namespace Trackr.Gui.Gtk {
 	public class MainWindow : Window {
 		private VBox _container;
-		private HPaned _paned;
 		private MenuBar _menu;
 		private Menu _fileMenu, _helpMenu;
 		private MenuItem _file, _help, _close, _quit, _sync, _settings, _about, _updates;
+		private HPaned _pane;
+		private TreeView _sidebar;
+		private TreeViewColumn _column;
+		private TreeStore _store;
+		private Notebook _nb;
+		private AnimeWindow _animeBox;
+		private VBox _mangaBox, _searchBox;
 		private Statusbar _statusbar;
 		
 		public MainWindow() : base(Program.AppName) {
 			Icon = Program.AppIcon;
-			DefaultSize = new Gdk.Size(600, 550);
+			DefaultSize = new Gdk.Size(700, 550);
 			Role = "MainWindow";
 			WindowPosition = WindowPosition.Center;
 			KeepAbove = Program.Settings.KeepWindowOnTop;
@@ -27,11 +35,12 @@ namespace Trackr.Gui.Gtk {
 		}
 
 		private void Instantiate() {
+			// Containers
 			_container = new VBox(false, 3);
-			_paned = new HPaned();
 			_menu = new MenuBar();
 			_statusbar = new Statusbar();
 
+			// Menu bar
 			_fileMenu = new Menu();
 			_helpMenu = new Menu();
 			_file = new MenuItem("File");
@@ -42,11 +51,24 @@ namespace Trackr.Gui.Gtk {
 			_quit = new MenuItem("Quit");
 			_about = new MenuItem("About " + Program.AppName);
 			_updates = new MenuItem("Check for Updates");
+
+			// Sidebar
+			_pane = new HPaned();
+			_store = new TreeStore(typeof(Pixbuf), typeof(string));
+			_sidebar = new TreeView(_store);
+			_column = new TreeViewColumn();
+			
+			// Notebook
+			_nb = new Notebook();
+			_animeBox = new AnimeWindow();
+			_mangaBox = new VBox();
+			_searchBox = new VBox();
+
 		}
 
 		private void Build() {
 			_container.PackStart(_menu, false, false, 0);
-			_container.Add(_paned);
+			_container.Add(_pane);
 			_container.PackEnd(_statusbar, false, false, 0);
 			Add(_container);
 			
@@ -66,7 +88,31 @@ namespace Trackr.Gui.Gtk {
 			_about.Activated += OnAbout;
 			_menu.Add(_help);
 			_help.Submenu = _helpMenu;
+			
+			// Sidebar
+			_pane.Add1(_sidebar);
+			var crp = new CellRendererPixbuf();
+			var crt = new CellRendererText();
+			_column.PackStart(crp, true);
+			_column.PackEnd(crt, true);
+			_column.AddAttribute(crp, "pixbuf", 0);
+			_column.AddAttribute(crt, "text", 1);
+			_sidebar.AppendColumn(_column);
+			_sidebar.HeadersVisible = false;
+			//TODO find icons
+			_store.AppendValues(null, "Anime");
+			_store.AppendValues(null, "Manga");
+			_store.AppendValues(null, "Search");
 
+			// Notebook
+			_pane.Add2(_nb);
+			_nb.ShowTabs = false;
+			_nb.Add(_animeBox);
+			_nb.Add(_mangaBox);
+			_nb.Add(_searchBox);
+			_nb.CurrentPage = 0;
+
+			_animeBox.SettingsItem.Clicked += OnSettings;
 		}
 
 		internal void OnSettings(object o, EventArgs args) {

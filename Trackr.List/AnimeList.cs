@@ -22,9 +22,9 @@ namespace Trackr.List {
         public IAnime Client => _client;
 
         private List<Anime> _entries;
-        private Queue<Anime> _queue; // these must be synced
-		private string _api; // the type of api
-		private string _username; // the username of the api instance
+        private readonly Queue<Anime> _queue; // these must be synced
+		public string Api => Client.Name;
+        public string Username => Client.Username; // the username of the api instance
 
         private readonly string _filePath;
 
@@ -36,8 +36,6 @@ namespace Trackr.List {
             _queue = new Queue<Anime>();
             _client = client;
             _filePath = ResolveFilePath(client);
-			_api = _client.Name;
-			_username = _client.Username;
         }
 
         /// <summary>
@@ -49,11 +47,8 @@ namespace Trackr.List {
             try {
                 var f = new BinaryFormatter();
                 var fs = new FileStream(ResolveFilePath(client), FileMode.Open, FileAccess.Read, FileShare.Read);
-                AnimeList list = (AnimeList) f.Deserialize(fs);
+                var list = (AnimeList) f.Deserialize(fs);
                 fs.Close();
-				// if it is a different user, reload the list.
-				if(client.Name != list._api || client.Username != list._username)
-					throw new Exception();
                 return list;
             }
             catch(Exception) {
@@ -102,7 +97,7 @@ namespace Trackr.List {
         /// <returns>A list of all anime results.</returns>
         /// <exception cref="ApiFormatException">if the request times out.</exception>
         public async Task<List<Anime>> Find(string keywords){
-            List<Anime> result = await _client.FindAnime(keywords);
+            var result = await _client.FindAnime(keywords);
             return result.Select(a => Contains(a) ? this[a.Id] : a).ToList();
         }
 
@@ -110,6 +105,7 @@ namespace Trackr.List {
         /// Sync tasks that are currently in the queue.
         /// </summary>
         /// <exception cref="ApiFormatException">if the request times out.</exception>
+        // TODO: Make this more efficient etc
         public async Task<bool> Sync(){
             var remote = await _client.PullAnimeList();
             // First we update from our sync queue.
@@ -143,6 +139,7 @@ namespace Trackr.List {
         /// <summary>
         /// Get anime by ID
         /// </summary>
+        /// <returns>The requested anime, or null if it doesn't exist.</returns>
         public Anime this[int i]{
             get {
                 try {

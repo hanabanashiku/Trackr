@@ -43,6 +43,8 @@
   <ItemGroup>
     <Compile Include="AccountDialog.cs" />
     <Compile Include="AccountsManager.cs" />
+    <Compile Include="AnimeTreeView.cs" />
+    <Compile Include="AnimeWindow.cs" />
     <Compile Include="MainWindow.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

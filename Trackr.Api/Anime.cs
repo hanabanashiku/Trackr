@@ -5,6 +5,7 @@ namespace Trackr.Api {
     /// <summary>
     /// Reperesents an anime item from an API call
     /// </summary>
+    [Serializable]
     public class Anime : ApiEntry, IEquatable<Anime>{
 
         /// <summary>

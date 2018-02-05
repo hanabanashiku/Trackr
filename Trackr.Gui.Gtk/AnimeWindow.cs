@@ -1,5 +1,7 @@
 ﻿using System;
 using Gtk;
+using Trackr.Api;
+using Trackr.List;
 
 namespace Trackr.Gui.Gtk {
 	internal class AnimeWindow : VBox {
@@ -8,7 +10,7 @@ namespace Trackr.Gui.Gtk {
 		private Toolbar _toolbar;
 		private ToolButton _infoItem, _editItem, _removeItem, _syncItem;
 		internal ToolButton SettingsItem;
-		internal Entry FilterEntry; // TODO: This as written will mean that searches won't carry over through different tabs
+		internal Entry FilterEntry; // note: This as written will mean that searches won't carry over through different tabs
 
 		internal AnimeWindow() : base(false, 0) {
 			Instantiate();
@@ -56,7 +58,7 @@ namespace Trackr.Gui.Gtk {
 			sw = new ScrolledWindow();
 			sw.SetPolicy(PolicyType.Automatic, PolicyType.Automatic);
 			sw.Add(_holdTree);
-			_nb.AppendPage(sw, new Label("Hold"));
+			_nb.AppendPage(sw, new Label("On Hold"));
 			
 			// Planned page
 			sw = new ScrolledWindow();
@@ -87,6 +89,28 @@ namespace Trackr.Gui.Gtk {
 			_toolbar.Add(new ToolItem(){FilterEntry});
 			FilterEntry.Changed += OnFilterChanged;
 			FilterEntry.Activated += OnFilterActivated;
+		} // build
+
+		internal void Fill() {
+			Console.WriteLine("Clearing...");
+			_watchingTree.Store.Clear();
+			_completedTree.Store.Clear();
+			_droppedTree.Store.Clear();
+			_plannedTree.Store.Clear();
+			_holdTree.Store.Clear();
+			
+			Console.WriteLine(Program.AnimeList == null);
+			if(Program.AnimeList == null) return;
+			Console.WriteLine("Filling current");
+			Program.AnimeList[ApiEntry.ListStatuses.Current].ForEach(x => _watchingTree.Store.AppendValues(x));
+			Console.WriteLine("Filling Completed");
+			Program.AnimeList[ApiEntry.ListStatuses.Completed].ForEach(x => _completedTree.Store.AppendValues(x));
+			Console.WriteLine("Filling Dropped");
+			Program.AnimeList[ApiEntry.ListStatuses.Dropped].ForEach(x => _droppedTree.Store.AppendValues(x));
+			Console.WriteLine("Filling Planned");
+			Program.AnimeList[ApiEntry.ListStatuses.Planned].ForEach(x => _plannedTree.Store.AppendValues(x));
+			Console.WriteLine("Filling hold");
+			Program.AnimeList[ApiEntry.ListStatuses.OnHold].ForEach(x => _holdTree.Store.AppendValues(x));
 		}
 
 		private void OnFilterChanged(object o, EventArgs args) {

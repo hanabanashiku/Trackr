@@ -45,6 +45,8 @@ namespace Trackr.Gui.Gtk {
             AnimeList = GetAnimeList();
             MangaList = GetMangaList();
             
+            Console.WriteLine(Settings.DefaultAnime == null);
+            
             // we have a settings file! Spawn our notification icon and window
             _tray = new SystemTray();
             Win = new MainWindow { Visible = Settings.ShowWindowOnStart };
@@ -56,8 +58,20 @@ namespace Trackr.Gui.Gtk {
         /// </summary>
         public static void SettingsChanged() {
             Win.KeepAbove = Settings.KeepWindowOnTop;
+            
+            // Check default accounts
+            if(Settings.DefaultAnime == null)
+                AnimeList = null;
+            else if(Settings.DefaultAnime.Provider != AnimeList.Api || Settings.DefaultAnime.Username != AnimeList.Username)
+                AnimeList = GetAnimeList();
+            if(Settings.DefaultManga == null)
+                MangaList = null;
+            else if(Settings.DefaultManga.Provider != MangaList.Api || Settings.DefaultManga.Username != MangaList.Username)
+                MangaList = GetMangaList();
+            
+            // Reload the list - what if the changed the title type?
+            Win.Fill();
         }
-        
         
 
         /// <summary>
@@ -67,7 +81,6 @@ namespace Trackr.Gui.Gtk {
         // TODO: Handle instantiation errors
         public static AnimeList GetAnimeList() {
             var act = Settings.DefaultAnime;
-            if(act == null) return null;
             switch(act.Provider) {
                     case "MyAnimeList":
                         return AnimeList.Load(new MyAnimeList(act.Credentials));

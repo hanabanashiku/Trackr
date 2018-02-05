@@ -1,8 +1,6 @@
 ﻿using System;
-using System.Dynamic;
 using Gdk;
 using Gtk;
-using Image = Gtk.Image;
 using Window = Gtk.Window;
 
 namespace Trackr.Gui.Gtk {
@@ -17,12 +15,13 @@ namespace Trackr.Gui.Gtk {
 		private TreeStore _store;
 		private Notebook _nb;
 		private AnimeWindow _animeBox;
+		private NullAccountWindow _nullAccountBox;
 		private VBox _mangaBox, _searchBox;
 		private Statusbar _statusbar;
 		
 		public MainWindow() : base(Program.AppName) {
 			Icon = Program.AppIcon;
-			DefaultSize = new Gdk.Size(700, 550);
+			DefaultSize = new Size(700, 550);
 			Role = "MainWindow";
 			WindowPosition = WindowPosition.Center;
 			KeepAbove = Program.Settings.KeepWindowOnTop;
@@ -62,6 +61,7 @@ namespace Trackr.Gui.Gtk {
 			_nb = new Notebook();
 			_animeBox = new AnimeWindow();
 			_mangaBox = new VBox();
+			_nullAccountBox = new NullAccountWindow();
 			_searchBox = new VBox();
 
 		}
@@ -91,6 +91,7 @@ namespace Trackr.Gui.Gtk {
 			
 			// Sidebar
 			_pane.Add1(_sidebar);
+			_sidebar.CursorChanged += OnSidebarActivated;
 			var crp = new CellRendererPixbuf();
 			var crt = new CellRendererText();
 			_column.PackStart(crp, true);
@@ -109,10 +110,38 @@ namespace Trackr.Gui.Gtk {
 			_nb.ShowTabs = false;
 			_nb.Add(_animeBox);
 			_nb.Add(_mangaBox);
+			_nb.Add(_nullAccountBox);
 			_nb.Add(_searchBox);
 			_nb.CurrentPage = 0;
 
 			_animeBox.SettingsItem.Clicked += OnSettings;
+		}
+
+		internal void Fill() {
+			_animeBox.Fill();
+			//_mangaBox.Fill();
+		}
+
+		private void OnSidebarActivated(object o, EventArgs args) {
+			var s = _sidebar.Selection;
+			TreeIter i;
+			if(!s.GetSelected(out i)) return;
+			switch((string)_sidebar.Model.GetValue(i, 1)) {
+				case "Anime":
+					// Switch to the null account page or the anime page
+					_nb.CurrentPage = Program.AnimeList == null ? 2 : 0;
+					break;
+				case "Manga":
+					// Switch to the null account page or the manga page
+					_nb.CurrentPage = (Program.MangaList == null) ? 2 : 1;
+					break;
+				case "Search":
+					_nb.CurrentPage = 3;
+					break;
+				default:
+					Console.WriteLine("Warning: Unknown page");
+					break;
+			}
 		}
 
 		internal void OnSettings(object o, EventArgs args) {

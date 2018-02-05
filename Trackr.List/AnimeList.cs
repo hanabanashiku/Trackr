@@ -36,6 +36,7 @@ namespace Trackr.List {
             _queue = new Queue<Anime>();
             _client = client;
             _filePath = ResolveFilePath(client);
+            Task.Run(Sync);
         }
 
         /// <summary>

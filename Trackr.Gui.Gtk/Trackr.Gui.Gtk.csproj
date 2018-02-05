@@ -46,6 +46,7 @@
     <Compile Include="AnimeTreeView.cs" />
     <Compile Include="AnimeWindow.cs" />
     <Compile Include="MainWindow.cs" />
+    <Compile Include="NullAccountWindow.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SettingsWindow.cs" />

@@ -5,6 +5,7 @@ namespace Trackr.Api {
     /// <summary>
     /// Represents an item result from an API call
     /// </summary>
+    [Serializable]
     public abstract class ApiEntry {
 
         /// <summary>

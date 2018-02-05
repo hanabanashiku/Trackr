@@ -22,7 +22,9 @@ namespace Trackr.List {
         public IManga Client => _client;
 
         private List<Manga> _entries;
-        private Queue<Manga> _queue; // these must be synced
+        private readonly Queue<Manga> _queue; // these must be synced
+        public string Api => Client.Name;
+        public string Username => Client.Username; // the username of the api instance
 
         private readonly string _filePath;
 

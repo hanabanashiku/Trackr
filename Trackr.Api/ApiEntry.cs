@@ -76,7 +76,7 @@ namespace Trackr.Api {
         /// The user's personal score of the title, from 0 to 10.
         /// </summary>
         public int UserScore {
-            get { return _userScore; }
+            get => _userScore;
             set {
                 if(value < 0 || value > 10)
                     throw new ArgumentOutOfRangeException();
@@ -85,6 +85,6 @@ namespace Trackr.Api {
         }
 
         public Image Cover => Image.FromFile(ImageUrl);
-        protected int _userScore = 0;
+        protected int _userScore;
     }
 }

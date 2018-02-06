@@ -25,6 +25,10 @@ namespace Trackr.List {
         private readonly Queue<Manga> _queue; // these must be synced
         public string Api => Client.Name;
         public string Username => Client.Username; // the username of the api instance
+        
+        public event EventHandler SyncStart;
+        public event EventHandler SyncStop;
+        public event ErrorEventHandler SyncError;
 
         private readonly string _filePath;
 
@@ -96,7 +100,7 @@ namespace Trackr.List {
         /// <returns>A list of all anime results.</returns>
         /// <exception cref="ApiFormatException">if the request times out.</exception>
         public async Task<List<Manga>> Find(string keywords){
-            List<Manga> result = await _client.FindManga(keywords);
+            var result = await _client.FindManga(keywords);
             return result.Count == 0 ? result
                 : result.Select(m => Contains(m) ? this[m.Id] : m).ToList();
         }
@@ -105,19 +109,28 @@ namespace Trackr.List {
         /// Sync tasks that are currently in the queue.
         /// </summary>
         /// <exception cref="ApiFormatException">if the request times out.</exception>
-        public async void Sync(){
-            var remote = await _client.PullMangaList();
-            // First we update from our sync queue.
-            while(_queue.Count != 0) {
-                var m = _queue.Peek();
-                // We want to add it and it's not already there
-                if(!remote.Contains(m) && m.ListStatus != ApiEntry.ListStatuses.NotInList)
-                    await _client.AddManga(m.Id, m.ListStatus);
-                await _client.UpdateManga(m); // calls RemoveAnime() implicitly if NotInList
-                _queue.Dequeue(); // NOTE: even if it is rejected, it is still being dequeued.
+        public async Task<bool> Sync(){
+            SyncStart?.Invoke(this, EventArgs.Empty);
+            try {
+                var remote = await _client.PullMangaList();
+                // First we update from our sync queue.
+                while(_queue.Count != 0) {
+                    var m = _queue.Peek();
+                    // We want to add it and it's not already there
+                    if(!remote.Contains(m) && m.ListStatus != ApiEntry.ListStatuses.NotInList)
+                        await _client.AddManga(m.Id, m.ListStatus);
+                    await _client.UpdateManga(m); // calls RemoveAnime() implicitly if NotInList
+                    _queue.Dequeue(); // NOTE: even if it is rejected, it is still being dequeued.
+                }
+                // Pull again after we have exhausted our sync queue
+                _entries = await _client.PullMangaList();
+                return true;
             }
-            // Pull again after we have exhausted our sync queue
-            _entries = await _client.PullMangaList();
+            catch(Exception e) {
+                SyncError?.Invoke(this, new ErrorEventArgs(e));
+            }
+            SyncStop?.Invoke(this, EventArgs.Empty);
+            return false;
         }
 
         /// <summary>

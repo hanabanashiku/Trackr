@@ -77,12 +77,12 @@ namespace Trackr.Gui.Gtk {
         /// <summary>
         /// Return the correct anime list based on the default value.
         /// </summary>
-        /// <returns></returns>
-        // TODO: Handle instantiation errors
+        /// <returns>The retrieved AnimeList</returns>
         public static AnimeList GetAnimeList() {
             var act = Settings.DefaultAnime;
-            AnimeList list;
-            switch(act.Provider) {
+            try {
+                AnimeList list;
+                switch(act?.Provider) {
                     case "MyAnimeList":
                         list = AnimeList.Load(new MyAnimeList(act.Credentials));
                         break;
@@ -93,27 +93,66 @@ namespace Trackr.Gui.Gtk {
                         throw new NotImplementedException();
                     default:
                         return null;
+                }
+                list.SyncStart += OnSyncStart;
+                list.SyncStop += OnSyncStop;
+                list.SyncError += OnSyncError;
+                return list;
             }
-            list.SyncStart += OnSyncStart;
-            list.SyncStop += OnSyncStop;
-            list.SyncError += OnSyncError;
-            return list;
+            catch(Exception e) {
+                var md = new MessageDialog(Win, DialogFlags.DestroyWithParent, MessageType.Error, ButtonsType.YesNo,
+                    "An error was encountered while loading the default anime list: \n" + e.Message +
+                    "\n Open the settings window?") { WindowPosition = WindowPosition.Center};
+                if(md.Run() == (int)ResponseType.Yes) {
+                    md.Destroy();
+                    var s = new SettingsWindow(false) { WindowPosition = WindowPosition.Center};
+                    if(s.Run() == (int)ResponseType.Accept) {
+                        SettingsChanged();
+                    }
+                    s.Destroy();
+                }
+                else md.Destroy();
+                return null;
+            }
+
         }
 
         public static MangaList GetMangaList() {
             var act = Settings.DefaultManga;
-            if(act == null) return null;
-            switch(act.Provider) {
-                case "MyAnimeList":
-                        return MangaList.Load(new MyAnimeList(act.Credentials));
-                case "Kitsu":
-                        return MangaList.Load(new Kitsu(act.Credentials));
-                case "AniList":
-                    throw new NotImplementedException();
-                 default: 
-                     return null;
+            try {
+                MangaList list;
+                switch(act?.Provider) {
+                    case "MyAnimeList":
+                        list = MangaList.Load(new MyAnimeList(act.Credentials));
+                        break;
+                    case "Kitsu":
+                        list = MangaList.Load(new Kitsu(act.Credentials));
+                        break;
+                    case "AniList":
+                        throw new NotImplementedException();
+                    default:
+                        return null;
+                }
+                list.SyncStart += OnSyncStart;
+                list.SyncStop += OnSyncStop;
+                list.SyncError += OnSyncError;
+                return list;
             }
-            // TODO Statusbar
+            catch(Exception e) {
+                var md = new MessageDialog(Win, DialogFlags.DestroyWithParent, MessageType.Error, ButtonsType.YesNo,
+                    "An error was encountered while loading the default manga list: \n" + e.Message +
+                    "\n Open the settings window?") { WindowPosition = WindowPosition.Center};
+                if(md.Run() == (int)ResponseType.Yes) {
+                    md.Destroy();
+                    var s = new SettingsWindow(false) { WindowPosition = WindowPosition.Center};
+                    if(s.Run() == (int)ResponseType.Accept) {
+                        SettingsChanged();
+                    }
+                    s.Destroy();
+                }
+                else md.Destroy();
+                return null;
+            }
         }
 
         private static void OnSyncStart(object o, EventArgs args) {

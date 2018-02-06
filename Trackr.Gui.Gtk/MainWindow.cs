@@ -122,10 +122,8 @@ namespace Trackr.Gui.Gtk {
 		}
 
 		internal void Fill() {
-			Console.WriteLine("Filling");
 			_animeBox.Fill();
 			//_mangaBox.Fill();
-			Console.WriteLine("Filled");
 		}
 
 		private void OnSidebarActivated(object o, EventArgs args) {

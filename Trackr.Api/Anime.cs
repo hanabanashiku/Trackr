@@ -27,9 +27,9 @@ namespace Trackr.Api {
         /// </summary>
         public enum ShowTypes {
             Tv,
+            Movie,
             Ova,
             Ona,
-            Movie,
             Special,
             Music
         }
@@ -131,7 +131,7 @@ namespace Trackr.Api {
         }
 
         public override bool Equals(object o) {
-            if(o.GetType() != typeof(Anime)) return false;
+            if(o?.GetType() != typeof(Anime)) return false;
             var a = o as Anime;
             return a != null && Equals(a);
         }

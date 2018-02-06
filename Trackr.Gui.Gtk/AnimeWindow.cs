@@ -15,7 +15,6 @@ namespace Trackr.Gui.Gtk {
 		internal AnimeWindow() : base(false, 0) {
 			Instantiate();
 			Build();
-			Console.WriteLine("Hello world");
 		}
 
 		private void Instantiate() {
@@ -93,24 +92,17 @@ namespace Trackr.Gui.Gtk {
 		} // build
 
 		internal void Fill() {
-			Console.WriteLine("Clearing...");
 			_watchingTree.Store.Clear();
 			_completedTree.Store.Clear();
 			_droppedTree.Store.Clear();
 			_plannedTree.Store.Clear();
 			_holdTree.Store.Clear();
 			
-			Console.WriteLine(Program.AnimeList == null);
 			if(Program.AnimeList == null) return;
-			Console.WriteLine("Filling current");
 			Program.AnimeList[ApiEntry.ListStatuses.Current].ForEach(x => _watchingTree.Store.AppendValues(x));
-			Console.WriteLine("Filling Completed");
 			Program.AnimeList[ApiEntry.ListStatuses.Completed].ForEach(x => _completedTree.Store.AppendValues(x));
-			Console.WriteLine("Filling Dropped");
 			Program.AnimeList[ApiEntry.ListStatuses.Dropped].ForEach(x => _droppedTree.Store.AppendValues(x));
-			Console.WriteLine("Filling Planned");
 			Program.AnimeList[ApiEntry.ListStatuses.Planned].ForEach(x => _plannedTree.Store.AppendValues(x));
-			Console.WriteLine("Filling hold");
 			Program.AnimeList[ApiEntry.ListStatuses.OnHold].ForEach(x => _holdTree.Store.AppendValues(x));
 		}
 

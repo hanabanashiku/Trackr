@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Drawing.Drawing2D;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -297,31 +296,31 @@ namespace Trackr.Api {
             if(node.Name != "entry") throw new ApiFormatException("The node is not an entry node.");
             if(!node.HasChildNodes) throw new ApiFormatException("The node has no information.");
             try {
-                int id = int.Parse(node.SelectSingleNode(".//id/text()").Value);
-                string title = node.SelectSingleNode(".//title/text()").Value;
+                var id = int.Parse(node.SelectSingleNode(".//id/text()").Value);
+                var title = node.SelectSingleNode(".//title/text()").Value;
                 var englishnode = node.SelectSingleNode(".//english/text()");
-                string english = (englishnode == null) ? string.Empty : englishnode.Value;
-                XmlNode synonymnode = node.SelectSingleNode(".//synonyms/text()");
+                var english = (englishnode == null) ? string.Empty : englishnode.Value;
+                var synonymnode = node.SelectSingleNode(".//synonyms/text()");
                 var synonyms = synonymnode == null ? new string[0] : Regex.Split(synonymnode.Value, "; ");
-                int episodes = int.Parse(node.SelectSingleNode(".//episodes/text()").Value);
-                double score = double.Parse(node.SelectSingleNode(".//score/text()").Value);
-                Anime.ShowTypes type = ResolveAnimeType(node.SelectSingleNode(".//type/text()").Value);
-                Anime.RunningStatuses status =
+                var episodes = int.Parse(node.SelectSingleNode(".//episodes/text()").Value);
+                var score = double.Parse(node.SelectSingleNode(".//score/text()").Value);
+                var type = ResolveAnimeType(node.SelectSingleNode(".//type/text()").Value);
+                var status =
                     ResolveAnimeRunningStatus(node.SelectSingleNode(".//status/text()").Value);
-                string startstring = node.SelectSingleNode(".//start_date/text()").Value;
-                string endstring = node.SelectSingleNode(".//end_date/text()").Value;
-                DateTime start = (startstring == DefaultDate)
+                var startstring = node.SelectSingleNode(".//start_date/text()").Value;
+                var endstring = node.SelectSingleNode(".//end_date/text()").Value;
+                var start = (startstring == DefaultDate)
                     ? DateTime.MinValue
                     : DateTime.ParseExact(startstring, DateFormat, CultureInfo.InvariantCulture);
-                DateTime end = (endstring == DefaultDate)
+                var end = (endstring == DefaultDate)
                     ? DateTime.MinValue
                     : DateTime.ParseExact(endstring, DateFormat, CultureInfo.InvariantCulture);
                 var synopsisnode = node.SelectSingleNode(".//synopsis/text()");
-                string synopsis = (synopsisnode == null) ? string.Empty : synopsisnode.Value;                
+                var synopsis = (synopsisnode == null) ? string.Empty : synopsisnode.Value;                
                 var urlnode = node.SelectSingleNode(".//image/text()");
-                string url = (urlnode == null) ? string.Empty : urlnode.Value;
-                var anilist = AniList.GetAniListAnimeEquiv(title, type, episodes).Result;
-                return new Anime(id, title, english, anilist.JapaneseTitle, synonyms, episodes, anilist.AirTimes, score, type, status, start, end, synopsis,
+                var url = (urlnode == null) ? string.Empty : urlnode.Value;
+                //var anilist = AniList.GetAniListAnimeEquiv(title, type, episodes).Result;
+                return new Anime(id, title, english, "Japanese Title", synonyms, episodes, new Dictionary<int, DateTime>(), score, type, status, start, end, synopsis,
                     url, "MyAnimeList");
             }
             catch(NullReferenceException e) {
@@ -350,9 +349,9 @@ namespace Trackr.Api {
                     ? DateTime.MinValue
                     : DateTime.ParseExact(endstring.Replace("00", "01"), DateFormat, CultureInfo.InvariantCulture);
                 string url = node.SelectSingleNode(".//series_image/text()").Value;
-                var anilist = AniList.GetAniListAnimeEquiv(title, type, episodes).Result;
-                Anime result = new Anime(
-                    id, title, anilist.EnglishTitle, anilist.JapaneseTitle, synonyms, episodes, anilist.AirTimes, anilist.Score, type, status, seriesStart, seriesEnd,
+                //var anilist = AniList.GetAniListAnimeEquiv(title, type, episodes).Result;
+                var result = new Anime(
+                    id, title, "English title", "Japanese Title", synonyms, episodes, new Dictionary<int, DateTime>(), 0, type, status, seriesStart, seriesEnd,
                     string.Empty, url, "MyAnimeList") {
                     CurrentEpisode = int.Parse(node.SelectSingleNode(".//my_watched_episodes/text()").Value)
                 };

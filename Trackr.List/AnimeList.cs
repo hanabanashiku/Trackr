@@ -28,6 +28,10 @@ namespace Trackr.List {
 
         private readonly string _filePath;
 
+        public event EventHandler SyncStart;
+        public event EventHandler SyncStop;
+        public event ErrorEventHandler SyncError;
+
         /// <summary>
         /// Instantiate the anime list
         /// </summary>
@@ -36,7 +40,6 @@ namespace Trackr.List {
             _queue = new Queue<Anime>();
             _client = client;
             _filePath = ResolveFilePath(client);
-            Task.Run(Sync);
         }
 
         /// <summary>
@@ -107,22 +110,35 @@ namespace Trackr.List {
         /// </summary>
         /// <exception cref="ApiFormatException">if the request times out.</exception>
         // TODO: Make this more efficient etc
-        public async Task<bool> Sync(){
-            var remote = await _client.PullAnimeList();
-            // First we update from our sync queue.
-            while(_queue.Count != 0) {
-                var a = _queue.Dequeue();
-                // We want to add it and it's not already there
-                if(!remote.Contains(a) && a.ListStatus != ApiEntry.ListStatuses.NotInList) {
-                    if(await _client.AddAnime(a.Id, a.ListStatus) == false)
+        public async Task<bool> Sync() {
+            SyncStart?.Invoke(this, EventArgs.Empty);
+            try {
+                var remote = await _client.PullAnimeList();
+                // First we update from our sync queue.
+                while(_queue.Count != 0) {
+                    var a = _queue.Dequeue();
+                    // We want to add it and it's not already there
+                    if(!remote.Contains(a) && a.ListStatus != ApiEntry.ListStatuses.NotInList) {
+                        if(await _client.AddAnime(a.Id, a.ListStatus) == false) {
+                            SyncStop?.Invoke(this, EventArgs.Empty);
+                            return false;
+                        }
+                            
+                    }
+                    if(await _client.UpdateAnime(a) == false){ // calls RemoveAnime() implicitly if NotInList        
+                        SyncStop?.Invoke(this, EventArgs.Empty);
                         return false;
+                    }
                 }
-                if(await _client.UpdateAnime(a) == false) // calls RemoveAnime() implicitly if NotInList
-                    return false;
+                // Pull again after we have exhausted our sync queue
+                _entries = await _client.PullAnimeList();
+                SyncStop?.Invoke(this, EventArgs.Empty);
+                return true;
             }
-            // Pull again after we have exhausted our sync queue
-            _entries = await _client.PullAnimeList();
-            return true;
+            catch(Exception e) {
+                SyncError?.Invoke(this, new ErrorEventArgs(e));
+                return false;
+            }
         }
 
         /// <summary>

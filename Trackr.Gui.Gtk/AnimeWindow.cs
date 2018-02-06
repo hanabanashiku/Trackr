@@ -15,6 +15,7 @@ namespace Trackr.Gui.Gtk {
 		internal AnimeWindow() : base(false, 0) {
 			Instantiate();
 			Build();
+			Console.WriteLine("Hello world");
 		}
 
 		private void Instantiate() {

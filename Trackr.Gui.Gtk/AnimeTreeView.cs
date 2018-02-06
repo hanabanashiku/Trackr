@@ -112,6 +112,7 @@ namespace Trackr.Gui.Gtk {
 		private static void RenderProgress(TreeViewColumn c, CellRenderer cell, TreeModel m, TreeIter i) {
 			var a = (Anime)m.GetValue(i, 0);
 			var crp = (CellRendererProgress)cell;
+			crp.Text = string.Empty;
 			if(a.Episodes == 0) { // we don't know how many episodes
 				if(a.AirTimes.Count > 0)
 					crp.Value = (int)(a.CurrentEpisode / (decimal)a.AirTimes.Keys.Max() * 100); // use the last known episode

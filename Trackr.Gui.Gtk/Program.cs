@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Reflection;
 using Gdk;
 using Gtk;
@@ -44,12 +45,11 @@ namespace Trackr.Gui.Gtk {
             // Get our lists ready (any sync them)
             AnimeList = GetAnimeList();
             MangaList = GetMangaList();
-            
-            Console.WriteLine(Settings.DefaultAnime == null);
-            
+                        
             // we have a settings file! Spawn our notification icon and window
             _tray = new SystemTray();
             Win = new MainWindow { Visible = Settings.ShowWindowOnStart };
+            Win.Fill();
             Application.Run();
         }
 
@@ -81,16 +81,23 @@ namespace Trackr.Gui.Gtk {
         // TODO: Handle instantiation errors
         public static AnimeList GetAnimeList() {
             var act = Settings.DefaultAnime;
+            AnimeList list;
             switch(act.Provider) {
                     case "MyAnimeList":
-                        return AnimeList.Load(new MyAnimeList(act.Credentials));
+                        list = AnimeList.Load(new MyAnimeList(act.Credentials));
+                        break;
                     case "Kitsu":
-                        return AnimeList.Load(new Kitsu(act.Credentials));
+                        list = AnimeList.Load(new Kitsu(act.Credentials));
+                        break;
                     case "AniList":
                         throw new NotImplementedException();
                     default:
                         return null;
             }
+            list.SyncStart += OnSyncStart;
+            list.SyncStop += OnSyncStop;
+            list.SyncError += OnSyncError;
+            return list;
         }
 
         public static MangaList GetMangaList() {
@@ -106,6 +113,22 @@ namespace Trackr.Gui.Gtk {
                  default: 
                      return null;
             }
+            // TODO Statusbar
         }
+
+        private static void OnSyncStart(object o, EventArgs args) {
+            Win?._statusbar.Pop(1);
+            Win?._statusbar.Push(1, "Syncing...");
+        }
+
+        private static void OnSyncStop(object o, EventArgs args) {
+            Win?._statusbar.Pop(1);
+        }
+
+        private static void OnSyncError(object o, ErrorEventArgs args) {
+            Win?._statusbar.Pop(1);
+            Win?._statusbar.Push(2, args.GetException().Message);
+        }
+        
     }
 }

@@ -1,6 +1,9 @@
 ﻿using System;
+using System.IO;
 using Gdk;
 using Gtk;
+using Trackr.List;
+using Image = Gtk.Image;
 using Window = Gtk.Window;
 
 namespace Trackr.Gui.Gtk {
@@ -17,7 +20,7 @@ namespace Trackr.Gui.Gtk {
 		private AnimeWindow _animeBox;
 		private NullAccountWindow _nullAccountBox;
 		private VBox _mangaBox, _searchBox;
-		private Statusbar _statusbar;
+		internal Statusbar _statusbar;
 		
 		public MainWindow() : base(Program.AppName) {
 			Icon = Program.AppIcon;
@@ -63,6 +66,7 @@ namespace Trackr.Gui.Gtk {
 			_mangaBox = new VBox();
 			_nullAccountBox = new NullAccountWindow();
 			_searchBox = new VBox();
+			
 
 		}
 
@@ -118,8 +122,10 @@ namespace Trackr.Gui.Gtk {
 		}
 
 		internal void Fill() {
+			Console.WriteLine("Filling");
 			_animeBox.Fill();
 			//_mangaBox.Fill();
+			Console.WriteLine("Filled");
 		}
 
 		private void OnSidebarActivated(object o, EventArgs args) {

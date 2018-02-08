@@ -11,7 +11,7 @@ namespace Trackr.Test {
 		private MyAnimeList _mal;
 		private UserPass _credentials;
 
-	    [TestFixtureSetUp]
+	    [OneTimeSetUp]
 	    public void SetUp(){
 	        Program.Init();
 			_credentials = new UserPass("trackrtest", "MWhXDyAUQdxa");

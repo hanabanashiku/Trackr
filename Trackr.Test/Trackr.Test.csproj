@@ -34,6 +34,7 @@
   <ItemGroup>
     <Compile Include="AnimeListFallbackTest.cs" />
     <Compile Include="AnimeListTest.cs" />
+    <Compile Include="KitsuTest.cs" />
     <Compile Include="MyAnimeListTests.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

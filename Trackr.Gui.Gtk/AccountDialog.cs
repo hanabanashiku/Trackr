@@ -152,11 +152,13 @@ namespace Trackr.Gui.Gtk {
 						res = api.VerifyCredentials().Result;
 					}
 					// ApiRequestException, WebException...
-					catch(Exception) {
+					catch(Exception e) {
 						var ed = new MessageDialog(null, DialogFlags.DestroyWithParent, MessageType.Error, ButtonsType.OkCancel,
 							"The request has timed out.") {WindowPosition = WindowPosition.Center};
 						var ret = ed.Run();
 						ed.Destroy();
+						Console.WriteLine("[Exception] " + (e.InnerException?.Message ?? e.Message));
+						
 						if(ret == (int)ResponseType.Cancel)
 							Respond(ResponseType.Reject);
 						_okButton.Sensitive = true;

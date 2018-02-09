@@ -87,6 +87,36 @@ namespace Trackr.Api {
                 }
             return false;
         }
+        
+        public async Task<bool> AddAnime(int id){
+            AuthenticationCheck();
+
+            var data = new JsonObject() {
+                ["data"] = new JsonObject {
+                    ["type"] = "libraryEntries",
+                    ["attributes"] = new JsonObject {
+                            ["status"] = FromListStatus(ApiEntry.ListStatuses.Current)
+                        },
+                    ["relationships"] = new JsonObject() {
+                        ["user"] = new JsonObject() {
+                            ["data"] = new JsonObject() {
+                                ["id"] = _userId,
+                                ["type"] = "users"
+                            }
+                        }
+                    },
+                    ["media"] = new JsonObject() {
+                        ["data"] = new JsonObject() {
+                            ["id"] = id,
+                            ["type"] = "anime"
+                        }
+                    }
+                }
+            };
+
+            var response = await _client.PostAsync(LibraryEntries, new StringContent(data));
+            return response.StatusCode == HttpStatusCode.OK;
+        }
 
         public async Task<bool> AddAnime(int id, ApiEntry.ListStatuses status){
             AuthenticationCheck();
@@ -225,6 +255,36 @@ namespace Trackr.Api {
             } while(true);
         }
 
+        public async Task<bool> AddManga(int id){
+            AuthenticationCheck();
+
+            var data = new JsonObject() {
+                ["data"] = new JsonObject {
+                    ["type"] = "libraryEntries",
+                    ["attributes"] = new JsonObject() {
+                        ["status"] = FromListStatus(ApiEntry.ListStatuses.Current)
+                    },
+                    ["relationships"] = new JsonObject() {
+                        ["user"] = new JsonObject() {
+                            ["data"] = new JsonObject() {
+                                ["id"] = _userId,
+                                ["type"] = "users"
+                            }
+                        }
+                    },
+                    ["media"] = new JsonObject() {
+                        ["data"] = new JsonObject() {
+                            ["id"] = id,
+                            ["type"] = "manga"
+                        }
+                    }
+                }
+            };
+
+            var response = await _client.PostAsync(LibraryEntries, new StringContent(data));
+            return response.IsSuccessStatusCode;
+        }
+        
         public async Task<bool> AddManga(int id, ApiEntry.ListStatuses status){
             AuthenticationCheck();
 

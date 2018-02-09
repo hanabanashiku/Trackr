@@ -178,6 +178,8 @@ namespace Trackr.Test {
 			Assert.AreEqual(maid.CurrentChapter, 5);
 			Assert.AreEqual(maid.UserStart, DateTime.Today);
 			Assert.AreEqual(maid.UserScore, 9);
+
+			Assert.False(manga.Any(x => x.Id == 13601));
 		}
 
 		[Test]

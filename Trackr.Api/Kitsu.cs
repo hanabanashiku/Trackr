@@ -6,11 +6,11 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Json;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 
 using Trackr.Core;
 
-//TODO: Find out why this class isn't working
 namespace Trackr.Api {
     /// <summary>
     /// A class for handling instances of Kitsu (formerly Hummingbird) accounts.
@@ -20,7 +20,7 @@ namespace Trackr.Api {
 		public const string Identifier = "Kitsu";
 
         public override string Name { get; } = Identifier;
-        public override string Username => _clientLogin.Username;
+        public override string Username => _username;
 
         private const string ContentType = "application/vnd.api+json";
         private const string AuthUrl = "https://kitsu.io/api/oauth/token";
@@ -31,38 +31,39 @@ namespace Trackr.Api {
         private const string LibraryEntries = UrlBase + "/library-entries";
         private const string AnimeItems = UrlBase + "/anime";
         private const string MangaItems = UrlBase + "/manga";
-        private const string DateFormat = "yyyy-MM-dd";
+        private static readonly string[] DateFormat = new string[] { "yyyy-MM-dd", "yyyy-MM-ddTHH:mm:ss.fffZ" };
 
         private readonly HttpClient _client;
         private readonly UserPass _clientLogin;
         private DateTime _expiration;
         private int _userId;
+        private string _username;
 
         public Kitsu(UserPass credentials){
             _clientLogin = credentials;
             _client = new HttpClient();
-            _client.DefaultRequestHeaders
-                .TryAddWithoutValidation("Accept", ContentType);
-            _client.DefaultRequestHeaders
-                .TryAddWithoutValidation("Content-Type", ContentType);
+            _client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue(ContentType));
             _expiration = DateTime.Now;
         }
 
         private async Task<bool> Authenticate(){
             var data = new FormUrlEncodedContent(new [] {
                 new KeyValuePair<string, string>("grant_type", "password"),
-                new KeyValuePair<string, string>("username", _clientLogin.Username),
-                new KeyValuePair<string, string>("password", _clientLogin.Password),
                 new KeyValuePair<string, string>("client_id", ClientId),
-                new KeyValuePair<string, string>("client_secret", ClientSecret)
+                new KeyValuePair<string, string>("client_secret", ClientSecret),
+                new KeyValuePair<string, string>("username", _clientLogin.Username),
+                new KeyValuePair<string, string>("password", _clientLogin.Password)
             });
             var response = await _client.PostAsync(AuthUrl, data);
-            if(response.StatusCode != HttpStatusCode.OK)
+            if(response.StatusCode != HttpStatusCode.OK) {
+                Console.WriteLine("[Kitsu] " + response.StatusCode);
                 return false;
+            }
             // store the token in the client and make a note of the expiration time.
             var json = JsonValue.Parse(response.Content.ReadAsStringAsync().Result);
+            if(json == null) return false;
             _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(json["token_type"], json["access_token"]);
-            _expiration = DateTime.Now.AddSeconds(double.Parse(json["expires_in"]));
+            _expiration = DateTime.Now.AddSeconds(json["expires_in"]);
             return true;
         }
 
@@ -75,17 +76,15 @@ namespace Trackr.Api {
         public override async Task<bool> VerifyCredentials(){
             if(await Authenticate() == false)
                 return false;
-
+           
             // some calls require the user's id
-            var response = await _client.GetAsync(UrlBase + $"/users?filter[name]={Username}");
+            var response = await _client.GetAsync(UrlBase + "/users?filter[self]=true");
             var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
-            if(json["data"].Count == 0) return false;
-            foreach(var i in (JsonArray)json["data"])
-                if(i["attributes"]["name"] == Username) {
-                    _userId = i["id"];
-                    return true;
-                }
-            return false;
+            if(json == null || json["data"].Count == 0) return false;
+            var data = ((JsonArray)json["data"]).First();
+            _username = data["attributes"]["name"];
+            _userId = data["id"];
+            return true;
         }
         
         public async Task<bool> AddAnime(int id){
@@ -94,28 +93,30 @@ namespace Trackr.Api {
             var data = new JsonObject() {
                 ["data"] = new JsonObject {
                     ["type"] = "libraryEntries",
-                    ["attributes"] = new JsonObject {
-                            ["status"] = FromListStatus(ApiEntry.ListStatuses.Current)
-                        },
+                    ["attributes"] = new JsonObject() {
+                        ["status"] = FromListStatus(ApiEntry.ListStatuses.Current)
+                    },
                     ["relationships"] = new JsonObject() {
                         ["user"] = new JsonObject() {
                             ["data"] = new JsonObject() {
                                 ["id"] = _userId,
                                 ["type"] = "users"
                             }
+                        },
+                        ["media"] = new JsonObject() {
+                            ["data"] = new JsonObject() {
+                                ["type"] = "anime",
+                                ["id"] = id
+                            }
                         }
                     },
-                    ["media"] = new JsonObject() {
-                        ["data"] = new JsonObject() {
-                            ["id"] = id,
-                            ["type"] = "anime"
-                        }
-                    }
                 }
             };
-
-            var response = await _client.PostAsync(LibraryEntries, new StringContent(data));
-            return response.StatusCode == HttpStatusCode.OK;
+            
+            var response = await _client.SendAsync(new HttpRequestMessage(HttpMethod.Post, LibraryEntries) {
+                Content = new StringContent(data.ToString(), Encoding.UTF8, ContentType)
+            });
+            return response.StatusCode == HttpStatusCode.Created;
         }
 
         public async Task<bool> AddAnime(int id, ApiEntry.ListStatuses status){
@@ -133,19 +134,21 @@ namespace Trackr.Api {
                                 ["id"] = _userId,
                                 ["type"] = "users"
                             }
+                        },
+                        ["media"] = new JsonObject() {
+                            ["data"] = new JsonObject() {
+                                ["type"] = "anime",
+                                ["id"] = id
+                            }
                         }
                     },
-                    ["media"] = new JsonObject() {
-                        ["data"] = new JsonObject() {
-                            ["id"] = id,
-                            ["type"] = "anime"
-                        }
-                    }
                 }
             };
-
-            var response = await _client.PostAsync(LibraryEntries, new StringContent(data));
-            return response.StatusCode == HttpStatusCode.OK;
+            
+            var response = await _client.SendAsync(new HttpRequestMessage(HttpMethod.Post, LibraryEntries) {
+                Content = new StringContent(data.ToString(), Encoding.UTF8, ContentType),
+            });
+            return response.StatusCode == HttpStatusCode.Created;
         }
 
         /// <summary>
@@ -156,13 +159,12 @@ namespace Trackr.Api {
         public async Task<bool> RemoveAnime(int id){
             AuthenticationCheck();
 
-            int entryId = await GetEntryId(id, "Anime");
-
+            var entryId = await GetEntryId(id, "anime");
             if(entryId == -1) return true; // the entry wasn't there
             if(entryId == -2) return false; // something went wrong
 
             var response = await _client.DeleteAsync(LibraryEntries + $"/{entryId}");
-            return response.IsSuccessStatusCode;
+            return response.IsSuccessStatusCode; // 200OK, 204NOCONTENT
         }
 
         /// <summary>
@@ -172,20 +174,26 @@ namespace Trackr.Api {
         /// <returns>A list of all results.</returns>
         /// <exception cref="ApiRequestException">If a request fails.</exception>
         /// <remarks>Kitsu will only return 20 items at a time, so multiple requests may be sent.</remarks>
+        /// <remarks>We shall limit this to 100 results (five requests). Kitsu's search algorithm seems rather generous..</remarks>
         public async Task<List<Anime>> FindAnime(string keywords){
-            List<Anime> ret = new List<Anime>();
-            string url = AnimeItems + $"?filter%5Btext%5D={keywords}&page%5Blimit%5D=20&page%5Boffset%5D=0";
-            string next = string.Empty;
+            var ret = new List<Anime>();
+            var url = AnimeItems + $"?filter%5Btext%5D={keywords}\u0026page%5Blimit\u00265D=20\u0026page%5Boffset%5D=0";
+            string next = null;
+            var count = 0;
             do {
-                if(next != string.Empty) url = next;
+                if(next != null) url = next;
                 var response = await _client.GetAsync(url);
-                if(response.StatusCode != HttpStatusCode.OK)
+                if(response.StatusCode != HttpStatusCode.OK) {
+                    Console.WriteLine("[Kitsu] response.StatusCode.ToString()");
                     throw new ApiRequestException(response.StatusCode.ToString());
+                }
                 var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
+                if(json == null) throw new ApiRequestException("Null JSON");
                 ret.AddRange(from i in (JsonArray)json["data"] select ToAnime(i));
-                if(json["links"]["next"] == null) return ret;
-                next = json["links"]["next"];
-            } while(true);
+                next = json["links"].ContainsKey("next") ? json["links"]["next"] : null;
+                count++;
+            } while(count <= 5 && next != null);
+            return ret;
         }
 
         /// <summary>
@@ -195,17 +203,20 @@ namespace Trackr.Api {
         /// <returns>True on success</returns>
         public async Task<bool> UpdateAnime(Anime a){
             AuthenticationCheck();
+            
+            // Not in list, remove it
             if(a.ListStatus == ApiEntry.ListStatuses.NotInList)
                 return await RemoveAnime(a.Id);
-
+            
+            // Mark episode count as completed
             if(a.ListStatus == ApiEntry.ListStatuses.Completed)
                 a.CurrentEpisode = a.Episodes;
 
-            int id = await GetEntryId(a.Id, "Anime");
-            if(id == -2) return false;
-            if(id == -1) {
+            var id = await GetEntryId(a.Id, "anime");
+            if(id == -2) return false; // Error
+            if(id == -1) { // Not found
                 await AddAnime(a.Id, a.ListStatus);
-                id = await GetEntryId(a.Id, "Anime");
+                id = await GetEntryId(a.Id, "anime");
                 if(id < 0) return false;
             }
 
@@ -215,14 +226,33 @@ namespace Trackr.Api {
                     ["type"] = "libraryEntries",
                     ["attributes"] = new JsonObject() {
                         ["status"] = FromListStatus(a.ListStatus),
-                        ["progress"] = a.CurrentEpisode
+                        ["progress"] = a.CurrentEpisode,
+                        ["notes"] = a.Notes,
+                        ["startedAt"] = FromDateTime(a.UserStart),
+                        ["finishedAt"] = FromDateTime(a.UserEnd)
+                        
+                    },
+                    ["relationships"] = new JsonObject() {
+                        ["user"] = new JsonObject() {
+                            ["data"] = new JsonObject() {
+                                ["id"] = _userId,
+                                ["type"] = "users"
+                            }
+                        },
+                        ["media"] = new JsonObject() {
+                            ["data"] = new JsonObject() {
+                                ["type"] = "anime",
+                                ["id"] = a.Id
+                            }
+                        }
                     }
                 }
             };
-            // Convert from 0-10 to 0-5
-            if(a.UserScore != 0) json["data"]["attributes"]["rating"] = a.UserScore / 2;
-
-            var response = await _client.PostAsync(LibraryEntries, new StringContent(json));
+            if(a.UserScore >= 2) json["data"]["attributes"]["ratingTwenty"] = a.UserScore * 2;
+            var response = await _client.SendAsync(new HttpRequestMessage(new HttpMethod("PATCH"), LibraryEntries + $"/{id}") {
+                Content = new StringContent(json.ToString(), Encoding.UTF8, ContentType)
+            });
+            Console.WriteLine(response.Content.ReadAsStringAsync().Result);
             return response.IsSuccessStatusCode;
         }
 
@@ -233,26 +263,39 @@ namespace Trackr.Api {
         /// <exception cref="ApiRequestException">If a request fails.</exception>
         /// <remarks>Kitsu will only return 500 items at a time, so multiple requests may be sent.</remarks>
         public async Task<List<Anime>> PullAnimeList(){
-            List<Anime> ret = new List<Anime>();
-            string url = AnimeItems +
-                         $"?filter%5Buser_id%5D={_userId}&filter%5Bmedia_type%5D=Anime&filter%5Bstatus%5D=1,2,3,4,5&include=media&page%5Blimit%5D=500&page%5Boffset%5D=0";
-            string next = string.Empty;
+            var ret = new List<Anime>();
+            var url = LibraryEntries +
+                         $"?filter%5Bkind%5D=anime\u0026filter%5Buser_id%5D={_userId}\u0026include=media\u0026page%5Blimit%5D=500\u0026page%5Boffset%5D=0";
+
+            // Kitsu returns multiple pages, so we must do it page by page.
+            // Luckily Kitsu will give us the URL to the next page!
+            string next = null;
             do {
-                if(next != string.Empty) url = next;
+                if(next != null) url = next;
                 var response = await _client.GetAsync(url);
-                if(response.StatusCode != HttpStatusCode.OK)
+                if(response.StatusCode != HttpStatusCode.OK) {
+                    Console.WriteLine("[Kitsu]" + response.StatusCode);
                     throw new ApiRequestException(response.StatusCode.ToString());
+                }
                 var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
-                foreach(var i in (JsonArray)json["data"]) {
-                    var a = ToAnime(i["included"][0]);
+                if(json == null) throw new ApiFormatException("Null JSON");
+                
+                foreach(var i in ((JsonArray)json["data"])) {
+                    int id = i["relationships"]["media"]["data"]["id"];
+                    var arr = ((JsonArray)json["included"]).FirstOrDefault(x => x["id"] == id);
+                    if(arr == null) throw new ApiFormatException("Null JSON entry");
+                    var a = ToAnime(arr);
                     a.ListStatus = ToListStatus(i["attributes"]["status"]);
                     a.CurrentEpisode = i["attributes"]["progress"];
-                    a.UserScore = (int)((double)i["attributes"]["rating"])*2; // always 0-5 with half steps.
-                    // Kitsu does not have UserStart/UserEnd items, so the default will be used.
+                    a.Notes = i["attributes"]["notes"];
+                    a.UserStart = ToDateTime(i["attributes"]["startedAt"]);
+                    a.UserEnd = ToDateTime(i["attributes"]["finishedAt"]);
+                    a.UserScore = (i["attributes"]["ratingTwenty"] ?? 0) / 2; 
+                    ret.Add(a);
                 }
-                if(json["next"] == null) return ret;
-                next = json["next"];
-            } while(true);
+                next = json["links"].ContainsKey("next") ? json["links"]["next"] : null;
+            } while(next != null);
+            return ret;
         }
 
         public async Task<bool> AddManga(int id){
@@ -340,15 +383,16 @@ namespace Trackr.Api {
         /// <exception cref="ApiRequestException">If a request fails.</exception>
         /// <remarks>Kitsu will only return 20 items at a time, so multiple requests may be sent.</remarks>
         public async Task<List<Manga>> FindManga(string keywords){
-            List<Manga> ret = new List<Manga>();
-            string url = MangaItems + $"?filter%5Btext%5D={keywords}&page%5Blimit%5D=20&page%5Boffset%5D=0";
-            string next = string.Empty;
+            var ret = new List<Manga>();
+            var url = MangaItems + $"?filter%5Btext%5D={keywords}&page%5Blimit%5D=20&page%5Boffset%5D=0";
+            var next = string.Empty;
             do {
                 if(next != string.Empty) url = next;
                 var response = await _client.GetAsync(url);
                 if(response.StatusCode != HttpStatusCode.OK)
                     throw new ApiRequestException(response.StatusCode.ToString());
                 var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
+                if(json == null) throw new ApiRequestException("Null JSON");
                 ret.AddRange(from i in (JsonArray)json["data"] select ToManga(i));
                 if(json["links"]["next"] == null) return ret;
                 next = json["links"]["next"];
@@ -400,16 +444,18 @@ namespace Trackr.Api {
         /// <exception cref="ApiRequestException">If a request fails.</exception>
         /// <remarks>Kitsu will only return 500 items at a time, so multiple requests may be sent.</remarks>
         public async Task<List<Manga>> PullMangaList(){
-            List<Manga> ret = new List<Manga>();
-            string url = MangaItems +
+            Console.WriteLine("Why am I running");
+            var ret = new List<Manga>();
+            var url = MangaItems +
                          $"?filter%5Buser_id%5D={_userId}&filter%5Bmedia_type%5D=Manga&filter%5Bstatus%5D=1,2,3,4,5&include=media&page%5Blimit%5D=500&page%5Boffset%5D=0";
-            string next = string.Empty;
+            var next = string.Empty;
             do {
                 if(next != string.Empty) url = next;
                 var response = await _client.GetAsync(url);
                 if(response.StatusCode != HttpStatusCode.OK)
                     throw new ApiRequestException(response.StatusCode.ToString());
                 var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
+                if(json == null) throw new ApiRequestException("Null JSON");
                 foreach(var i in (JsonArray)json["data"]) {
                     var m = ToManga(i["included"][0]);
                     m.ListStatus = ToListStatus(i["attributes"]["status"]);
@@ -498,46 +544,61 @@ namespace Trackr.Api {
 
         // On Kitsu, each item has a unique entry id. For some operations, we need it.
         // type is either 'Anime' or 'Manga'
-        private async Task<int> GetEntryId(int entry, string type){
+        private async Task<int> GetEntryId(int entry, string type) {
             var response = await _client.GetAsync(
-                LibraryEntries + $"?filter[user_id]={_userId}&filter[media_type]={type}&filter[media_id]={entry}");
+                // filter[user_id]=&filter[kind]=&filter[_id]=
+                LibraryEntries + $"?filter%5Buser_id%5D={_userId}\u0026filter%5Bkind%5D={type}\u0026filter%5B{type}_id%5D={entry}");
             if(response.StatusCode != HttpStatusCode.OK) return -2;
             var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
-            if(json["data"].Count == 0) return -1;
-            else return json["data"][0]["id"];
+            if(json == null) throw new ApiRequestException("Null JSON");
+            return json["data"][0]["id"];
         }
 
-        private static Anime ToAnime(JsonValue json){
+        // TODO: Airtimes (possibly available through this api)
+        private static Anime ToAnime(JsonValue json) {
+            if(json == null) throw new ApiFormatException("Null JSON");
             if(json["type"] != "anime")
                 throw new ApiFormatException("Unexpected type encountered");
-
-            string[] synonyms = new string[json["attributes"]["abbreviatedTitles"].Count];
-            for(int i = 0; i < json["attributes"]["abbreviatedTitles"].Count; i++)
-                synonyms[i] = json["attributes"]["abbreviatedTitles"][i];
-            DateTime start = ToDateTime(json["attributes"]["startDate"]);
-            DateTime end = ToDateTime(json["attributes"]["endDate"]);
-            Anime.ShowTypes type = ToShowType(json["attributes"]["showType"]);
+            var attr = json["attributes"];
+            
+            int id = json["id"];
+            string[] synonyms; // sometimes this is null
+            if(!json["attributes"].ContainsKey("abbreviatedTitles") || attr["abbreviatedTitles"] == null)
+                synonyms = new string[0];
+            else {
+                synonyms = new string[attr["abbreviatedTitles"].Count];
+                for(var i = 0; i < attr["abbreviatedTitles"].Count; i++)
+                    synonyms[i] = attr["abbreviatedTitles"][i];
+            }
+            var score = attr["averageRating"] == null ? 0.0 : (double)attr["averageRating"];
+            string title = attr["canonicalTitle"];
+            var enTitle = attr["titles"].ContainsKey("en") ? (string)attr["titles"]["en"] : title;
+            var romajiTitle = attr["titles"].ContainsKey("en_jp") ? (string)attr["titles"]["en_jp"] : title;
+            var jpTitle = attr["titles"].ContainsKey("ja_jp") ? (string)attr["titles"]["ja_jp"] : title;
+            string image = attr["posterImage"]?["original"];
+            var start = ToDateTime(attr["startDate"]);
+            var end = ToDateTime(attr["endDate"]);
+            var episodes = attr["episodeCount"] == null ? 0 : (int)attr["episodeCount"];
+            var type = ToShowType(attr["showType"]);
             Anime.RunningStatuses status;
             if(start == DateTime.MinValue) status = Anime.RunningStatuses.NotYetAired;
             else if(end == DateTime.MinValue) status = Anime.RunningStatuses.Airing;
             else status = Anime.RunningStatuses.Completed;
-            var airtimes = AniList.GetAiringTimes(json["attributes"]["titles"]["en_jp"], type, json["attributes"]["episodeCount"]).Result;
-            return new Anime(json["id"], json["attributes"]["titles"]["en_jp"],
-                json["attributes"]["titles"]["en"], json["attributes"]["titles"]["jp"],
-                synonyms, json["attributes"]["episodeCount"], airtimes, json["attributes"]["averageRating"],
-                type, status, start, end, json["attributes"]["synopsis"], json["attributes"]["coverImage"]["original"], "Kitsu");
+            string synopsis = attr["synopsis"];
+            return new Anime(id, romajiTitle, enTitle, jpTitle, synonyms, episodes, null, score, type, status, start,
+                end, synopsis, image, Identifier);
         }
 
         private static Manga ToManga(JsonValue json){
             if(json["type"] != "manga")
                 throw new ApiFormatException("Unexpected type encountered");
 
-            string[] synonyms = new string[json["attributes"]["abbreviatedTitles"].Count];
-            for(int i = 0; i < json["attributes"]["abbreviatedTitles"].Count; i++)
+            var synonyms = new string[json["attributes"]["abbreviatedTitles"].Count];
+            for(var i = 0; i < json["attributes"]["abbreviatedTitles"].Count; i++)
                 synonyms[i] = json["attributes"]["abbreviatedTitles"][i];
-            DateTime start = ToDateTime(json["attributes"]["startDate"]);
-            DateTime end = ToDateTime(json["attributes"]["endDate"]);
-            Manga.MangaTypes type = ToMangaType(json["attributes"]["mangaType"]);
+            var start = ToDateTime(json["attributes"]["startDate"]);
+            var end = ToDateTime(json["attributes"]["endDate"]);
+            var type = ToMangaType(json["attributes"]["mangaType"]);
             Manga.RunningStatuses status;
             if(start == DateTime.MinValue) status = Manga.RunningStatuses.NotYetPublished;
             else if(end == DateTime.MinValue) status = Manga.RunningStatuses.Publishing;
@@ -550,14 +611,21 @@ namespace Trackr.Api {
         }
 
         private static DateTime ToDateTime(string date){
-            return (date == null)
-                ? DateTime.MinValue
-                : DateTime.ParseExact(date, DateFormat, CultureInfo.InvariantCulture);
+            if(date == null) return DateTime.MinValue;
+            DateTime ret;
+            if(DateTime.TryParseExact(date, DateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out ret))
+                return ret;
+            throw new ApiFormatException("Could not parse datetime " + date);
+        }
+
+        private static string FromDateTime(DateTime dt) {
+            return dt == DateTime.MinValue ? null : 
+                dt.ToString(DateFormat[1], CultureInfo.InvariantCulture);
         }
 
         // when performing oauth functions, lets make sure that our token has not expired.
         private async void AuthenticationCheck(){
-            if(_userId == 0 && !await VerifyCredentials())
+            if(_userId == 0 || !await VerifyCredentials())
                 throw new ApiRequestException("[Kitsu] Could not verify user credentials");
             if(DateTime.Now >= _expiration) await Authenticate();
         }

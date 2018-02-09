@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Trackr.Api;
 using Trackr.Core;
@@ -12,11 +13,13 @@ namespace Trackr.Test {
 
 		[OneTimeSetUp]
 		public void SetUp() {
-			_credentials = new UserPass("trackrtest", "MWhXDyAUQdxa");
-			Assert.AreEqual(_credentials.Username, "trackrtest");
+			Program.UserSettings = Settings.Load();
+			_credentials = new UserPass("lodrechede@inaby.com", "MWhXDyAUQdxa"); // 182479
+			Assert.AreEqual(_credentials.Username, "lodrechede@inaby.com");
 			Assert.AreEqual(_credentials.Password, "MWhXDyAUQdxa");
 			_kitsu = new Kitsu(_credentials);
 			Assert.True(_kitsu.VerifyCredentials().Result);
+			Assert.AreEqual(_kitsu.Username, "trackrtest");
 		}
 
 		[Test]
@@ -36,7 +39,7 @@ namespace Trackr.Test {
 			Assert.AreEqual(anime.Count, 0);
 		}
 
-		[Test]
+		[Test] // TODO: Works, but there seems to be some timezone issues going on
 		public void UpdateAnime() {
 			Assert.True(_kitsu.AddAnime(12).Result); // One Piece
 			Assert.True(_kitsu.AddAnime(1376).Result); // Death Note
@@ -48,7 +51,7 @@ namespace Trackr.Test {
 			var onepiece = anime.First(x => x.Id == 12);
 			onepiece.UserScore = 10;
 			onepiece.CurrentEpisode = 718;
-			onepiece.UserStart = DateTime.Today;
+			onepiece.UserStart = new DateTime(2018, 2, 8);
 			Assert.True(_kitsu.UpdateAnime(onepiece).Result);
 			
 			var deathnote = anime.First(x => x.Id == 1376);
@@ -58,7 +61,7 @@ namespace Trackr.Test {
 			var dragonmaid = anime.First(x => x.Id == 12243);
 			dragonmaid.ListStatus = ApiEntry.ListStatuses.Completed;
 			dragonmaid.UserStart = dragonmaid.StartDate;
-			dragonmaid.UserEnd = DateTime.Today;
+			dragonmaid.UserEnd = DateTime.Today.Date;
 			dragonmaid.UserScore = 9;
 			Assert.True(_kitsu.UpdateAnime(dragonmaid).Result);
 
@@ -71,7 +74,7 @@ namespace Trackr.Test {
 			onepiece = anime.First(x => x.Id == 12);
 			Assert.AreEqual(onepiece.UserScore, 10);
 			Assert.AreEqual(onepiece.CurrentEpisode, 718);
-			Assert.AreEqual(onepiece.UserStart.Date, DateTime.Today.Date);
+			Assert.AreEqual(onepiece.UserStart.Date, new DateTime(2018, 2, 8).Date);
 			
 			deathnote = anime.First(x => x.Id == 1376);
 			Assert.AreEqual(deathnote.ListStatus, ApiEntry.ListStatuses.Completed);
@@ -201,13 +204,13 @@ namespace Trackr.Test {
 		}
 
 		[TearDown]
-		public async void TearDown() {
+		public async Task TearDown() {
 			var anime = _kitsu.PullAnimeList().Result;
 			foreach(var a in anime)
 				await _kitsu.RemoveAnime(a.Id);
-			var manga = _kitsu.PullMangaList().Result;
+			/*var manga = _kitsu.PullMangaList().Result;
 			foreach(var m in manga)
-				await _kitsu.RemoveManga(m.Id);
+				_kitsu.RemoveManga(m.Id).RunSynchronously();*/
 		}
 	}
 }

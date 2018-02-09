@@ -102,6 +102,13 @@ namespace Trackr.List {
         /// <exception cref="ApiFormatException">if the request times out.</exception>
         public async Task<List<Anime>> Find(string keywords){
             var result = await _client.FindAnime(keywords);
+            
+            // Get updated list data for everything we have in our list already
+            for(var i = 0; i < result.Count; i++) {
+                var a = _entries.FirstOrDefault(x => x.Id == result[i].Id);
+                if(a != null) result[i] = a;
+            }
+            
             return result.Select(a => Contains(a) ? this[a.Id] : a).ToList();
         }
 

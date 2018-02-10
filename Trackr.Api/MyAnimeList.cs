@@ -309,12 +309,13 @@ namespace Trackr.Api {
                     ResolveAnimeRunningStatus(node.SelectSingleNode(".//status/text()").Value);
                 var startstring = node.SelectSingleNode(".//start_date/text()").Value;
                 var endstring = node.SelectSingleNode(".//end_date/text()").Value;
+                // If there is no exact date, it says 00-00. Throws an exception!
                 var start = (startstring == DefaultDate)
                     ? DateTime.MinValue
-                    : DateTime.ParseExact(startstring, DateFormat, CultureInfo.InvariantCulture);
+                    : DateTime.ParseExact(startstring.Replace("00-00", "01-01"), DateFormat, CultureInfo.InvariantCulture);
                 var end = (endstring == DefaultDate)
                     ? DateTime.MinValue
-                    : DateTime.ParseExact(endstring, DateFormat, CultureInfo.InvariantCulture);
+                    : DateTime.ParseExact(endstring.Replace("00-00", "01-01"), DateFormat, CultureInfo.InvariantCulture);
                 var synopsisnode = node.SelectSingleNode(".//synopsis/text()");
                 var synopsis = (synopsisnode == null) ? string.Empty : synopsisnode.Value;                
                 var urlnode = node.SelectSingleNode(".//image/text()");

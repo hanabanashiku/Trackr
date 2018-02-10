@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Trackr.Api;
 using Trackr.Core;
@@ -26,7 +27,7 @@ namespace Trackr.Test {
 			Assert.True(_mal.AddAnime(21).Result); // One Piece
 			Assert.True(_mal.AddAnime(1535).Result); // Death Note
 			Assert.True(_mal.AddAnime(33206).Result); // Kobayashi-san Chi no Maid Dragon
-			List<Anime> anime = _mal.PullAnimeList().Result;
+			var anime = _mal.PullAnimeList().Result;
 			Assert.AreNotEqual(anime.Count, 0);
 			Assert.True(anime.Any(x => x.Title == "One Piece"));
 			Assert.True(anime.Any(x => x.Title == "Death Note"));
@@ -200,16 +201,16 @@ namespace Trackr.Test {
 			Assert.AreEqual(yotsuba.Volumes, 0);
 			Assert.AreEqual(yotsuba.Type, Manga.MangaTypes.Manga);
 			Assert.AreEqual(yotsuba.Status, Manga.RunningStatuses.Publishing);
-			Assert.AreEqual(yotsuba.StartDate, new DateTime(2003, 03, 21));
+			Assert.AreEqual(yotsuba.StartDate, new DateTime(2013, 03, 21));
 		}
 
 		[TearDown]
-		public async void TearDown(){
-			List<Anime> anime = _mal.PullAnimeList().Result;
-			foreach(Anime a in anime)
+		public async Task TearDown(){
+			var anime = _mal.PullAnimeList().Result;
+			foreach(var a in anime)
 				await _mal.RemoveAnime(a.Id);
-			List<Manga> manga = _mal.PullMangaList().Result;
-			foreach(Manga m in manga)
+			var manga = _mal.PullMangaList().Result;
+			foreach(var m in manga)
 				await _mal.RemoveManga(m.Id);
 		}
 	}

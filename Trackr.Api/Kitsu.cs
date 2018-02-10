@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Json;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -176,7 +177,7 @@ namespace Trackr.Api {
         /// <remarks>Kitsu will only return 20 items at a time, so multiple requests may be sent.</remarks>
         /// <remarks>We shall limit this to 100 results (five requests). Kitsu's search algorithm seems rather generous..</remarks>
         public async Task<List<Anime>> FindAnime(string keywords){
-            var ret = new List<Anime>();
+            var ret = new List<Anime>(); // ?filter[text]=&page[limit]=20&page[offset]=0
             var url = AnimeItems + $"?filter%5Btext%5D={keywords}\u0026page%5Blimit\u00265D=20\u0026page%5Boffset%5D=0";
             string next = null;
             var count = 0;
@@ -184,13 +185,13 @@ namespace Trackr.Api {
                 if(next != null) url = next;
                 var response = await _client.GetAsync(url);
                 if(response.StatusCode != HttpStatusCode.OK) {
-                    Console.WriteLine("[Kitsu] response.StatusCode.ToString()");
+                    Console.WriteLine("[Kitsu] " + response.StatusCode);
                     throw new ApiRequestException(response.StatusCode.ToString());
                 }
                 var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
-                if(json == null) throw new ApiRequestException("Null JSON");
-                ret.AddRange(from i in (JsonArray)json["data"] select ToAnime(i));
-                next = json["links"].ContainsKey("next") ? json["links"]["next"] : null;
+                if(json == null) throw new ApiRequestException("Null Response");
+                ret.AddRange(from a in (JsonArray)json["data"] select ToAnime(a));
+                next = json["links"].ContainsKey("next") ? json["links"]["next"] : null; // get the next page if there is one
                 count++;
             } while(count <= 5 && next != null);
             return ret;
@@ -248,11 +249,11 @@ namespace Trackr.Api {
                     }
                 }
             };
-            if(a.UserScore >= 2) json["data"]["attributes"]["ratingTwenty"] = a.UserScore * 2;
+            // if we define it it must be bigger than 2.
+            json["data"]["attributes"]["ratingTwenty"] = a.UserScore >= 1 ? (JsonValue)(a.UserScore * 2) : null;
             var response = await _client.SendAsync(new HttpRequestMessage(new HttpMethod("PATCH"), LibraryEntries + $"/{id}") {
                 Content = new StringContent(json.ToString(), Encoding.UTF8, ContentType)
             });
-            Console.WriteLine(response.Content.ReadAsStringAsync().Result);
             return response.IsSuccessStatusCode;
         }
 
@@ -274,11 +275,11 @@ namespace Trackr.Api {
                 if(next != null) url = next;
                 var response = await _client.GetAsync(url);
                 if(response.StatusCode != HttpStatusCode.OK) {
-                    Console.WriteLine("[Kitsu]" + response.StatusCode);
+                    Console.WriteLine("[Kitsu] " + response.StatusCode);
                     throw new ApiRequestException(response.StatusCode.ToString());
                 }
                 var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
-                if(json == null) throw new ApiFormatException("Null JSON");
+                if(json == null) throw new ApiFormatException("Null response");
                 
                 foreach(var i in ((JsonArray)json["data"])) {
                     int id = i["relationships"]["media"]["data"]["id"];
@@ -313,19 +314,21 @@ namespace Trackr.Api {
                                 ["id"] = _userId,
                                 ["type"] = "users"
                             }
+                        },
+                        ["media"] = new JsonObject() {
+                            ["data"] = new JsonObject() {
+                                ["type"] = "manga",
+                                ["id"] = id
+                            }
                         }
                     },
-                    ["media"] = new JsonObject() {
-                        ["data"] = new JsonObject() {
-                            ["id"] = id,
-                            ["type"] = "manga"
-                        }
-                    }
                 }
             };
 
-            var response = await _client.PostAsync(LibraryEntries, new StringContent(data));
-            return response.IsSuccessStatusCode;
+            var response = await _client.SendAsync(new HttpRequestMessage(HttpMethod.Post, LibraryEntries) {
+                Content = new StringContent(data.ToString(), Encoding.UTF8, ContentType),
+            });
+            return response.StatusCode == HttpStatusCode.Created;
         }
         
         public async Task<bool> AddManga(int id, ApiEntry.ListStatuses status){
@@ -347,15 +350,17 @@ namespace Trackr.Api {
                     },
                     ["media"] = new JsonObject() {
                         ["data"] = new JsonObject() {
-                            ["id"] = id,
-                            ["type"] = "manga"
+                            ["type"] = "manga",
+                            ["id"] = id
                         }
                     }
                 }
             };
 
-            var response = await _client.PostAsync(LibraryEntries, new StringContent(data));
-            return response.IsSuccessStatusCode;
+            var response = await _client.SendAsync(new HttpRequestMessage(HttpMethod.Post, LibraryEntries) {
+                Content = new StringContent(data.ToString(), Encoding.UTF8, ContentType),
+            });
+            return response.StatusCode == HttpStatusCode.Created;
         }
 
         /// <summary>
@@ -366,13 +371,12 @@ namespace Trackr.Api {
         public async Task<bool> RemoveManga(int id){
             AuthenticationCheck();
 
-            int entryId = await GetEntryId(id, "Manga");
-
+            var entryId = await GetEntryId(id, "manga");
             if(entryId == -1) return true; // the entry wasn't there
             if(entryId == -2) return false; // something went wrong
 
             var response = await _client.DeleteAsync(LibraryEntries + $"/{entryId}");
-            return response.IsSuccessStatusCode;
+            return response.IsSuccessStatusCode; //200OK, 204NOCONTENT
         }
 
         /// <summary>
@@ -383,20 +387,24 @@ namespace Trackr.Api {
         /// <exception cref="ApiRequestException">If a request fails.</exception>
         /// <remarks>Kitsu will only return 20 items at a time, so multiple requests may be sent.</remarks>
         public async Task<List<Manga>> FindManga(string keywords){
-            var ret = new List<Manga>();
-            var url = MangaItems + $"?filter%5Btext%5D={keywords}&page%5Blimit%5D=20&page%5Boffset%5D=0";
-            var next = string.Empty;
+            var ret = new List<Manga>(); // ?filter[text]=&page[limit]=20&page[offset]=0
+            var url = MangaItems + $"?filter%5Btext%5D={keywords}\u0026page%5Blimit%5D=20&page%5Boffset%5D=0";
+            string next = null;
+            var count = 0;
             do {
-                if(next != string.Empty) url = next;
+                if(next != null) url = next;
                 var response = await _client.GetAsync(url);
-                if(response.StatusCode != HttpStatusCode.OK)
+                if(response.StatusCode != HttpStatusCode.OK) {
+                    Console.WriteLine("[Kitsu] " + response.StatusCode);
                     throw new ApiRequestException(response.StatusCode.ToString());
+                }
                 var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
-                if(json == null) throw new ApiRequestException("Null JSON");
-                ret.AddRange(from i in (JsonArray)json["data"] select ToManga(i));
-                if(json["links"]["next"] == null) return ret;
-                next = json["links"]["next"];
-            } while(true);
+                if(json == null) throw new ApiRequestException("Null Response");
+                ret.AddRange(from m in (JsonArray)json["data"] select ToManga(m));
+                next = json["links"].ContainsKey("next") ? json["links"]["next"] : null; // get the next page if there is one
+                count++;
+            } while(count <= 5 && next != null);
+            return ret;
         }
 
         /// <summary>
@@ -412,11 +420,11 @@ namespace Trackr.Api {
             if(m.ListStatus == ApiEntry.ListStatuses.Completed)
                 m.CurrentChapter = m.Chapters;
 
-            int id = await GetEntryId(m.Id, "Manga");
+            var id = await GetEntryId(m.Id, "manga");
             if(id == -2) return false;
             if(id == -1) {
                 await AddManga(m.Id, m.ListStatus);
-                id = await GetEntryId(m.Id, "Manga");
+                id = await GetEntryId(m.Id, "manga");
                 if(id < 0) return false;
             }
 
@@ -426,14 +434,35 @@ namespace Trackr.Api {
                     ["type"] = "libraryEntries",
                     ["attributes"] = new JsonObject() {
                         ["status"] = FromListStatus(m.ListStatus),
-                        ["progress"] = m.CurrentChapter
+                        ["progress"] = m.CurrentChapter,
+                        ["volumesOwned"] = m.CurrentVolume,
+                        ["notes"] = m.Notes,
+                        ["startedAt"] = FromDateTime(m.UserStart),
+                        ["finishedAt"] = FromDateTime(m.UserEnd),
+                    },
+                    ["relationships"] = new JsonObject() {
+                        ["user"] = new JsonObject() {
+                            ["data"] = new JsonObject() {
+                                ["id"] = _userId,
+                                ["type"] = "users"
+                            }
+                        },
+                        ["media"] = new JsonObject() {
+                            ["data"] = new JsonObject() {
+                                ["type"] = "anime",
+                                ["id"] = m.Id
+                            }
+                        }
                     }
                 }
             };
-            // Convert from 0-10 to 0-5
-            if(m.UserScore != 0) json["data"]["attributes"]["rating"] = m.UserScore / 2;
-
-            var response = await _client.PostAsync(LibraryEntries, new StringContent(json));
+            // if we define it, it must be bigger thna 2.
+            json["data"]["attributes"]["ratingTwenty"] = m.UserScore >= 1 ? (JsonValue)(m.UserScore * 2) : null;
+            var response = await _client.SendAsync(
+                new HttpRequestMessage(new HttpMethod("PATCH"), LibraryEntries + $"/{id}") {
+                    Content = new StringContent(json.ToString(), Encoding.UTF8, ContentType)
+                });
+            Console.WriteLine(response.Content.ReadAsStringAsync().Result);
             return response.IsSuccessStatusCode;
         }
 
@@ -444,28 +473,38 @@ namespace Trackr.Api {
         /// <exception cref="ApiRequestException">If a request fails.</exception>
         /// <remarks>Kitsu will only return 500 items at a time, so multiple requests may be sent.</remarks>
         public async Task<List<Manga>> PullMangaList(){
-            Console.WriteLine("Why am I running");
             var ret = new List<Manga>();
-            var url = MangaItems +
-                         $"?filter%5Buser_id%5D={_userId}&filter%5Bmedia_type%5D=Manga&filter%5Bstatus%5D=1,2,3,4,5&include=media&page%5Blimit%5D=500&page%5Boffset%5D=0";
-            var next = string.Empty;
+            var url = LibraryEntries +
+                      $"?filter%5Bkind%5D=manga\u0026filter%5Buser_id%5D={_userId}\u0026include=media\u0026page%5Blimit%5D=500\u0026page%5Boffset%5D=0";
+
+            string next = null;
             do {
-                if(next != string.Empty) url = next;
+                if(next != null) url = next;
                 var response = await _client.GetAsync(url);
-                if(response.StatusCode != HttpStatusCode.OK)
+                if(response.StatusCode != HttpStatusCode.OK) {
+                    Console.WriteLine("[Kitsu] " + response.StatusCode);
                     throw new ApiRequestException(response.StatusCode.ToString());
-                var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
-                if(json == null) throw new ApiRequestException("Null JSON");
-                foreach(var i in (JsonArray)json["data"]) {
-                    var m = ToManga(i["included"][0]);
-                    m.ListStatus = ToListStatus(i["attributes"]["status"]);
-                    m.CurrentChapter = i["attributes"]["progress"];
-                    m.UserScore = (int)((double)i["attributes"]["rating"])*2; // always 0-5 with half steps.
-                    // Kitsu does not have UserStart/UserEnd items, so the default will be used.
                 }
-                if(json["next"] == null) return ret;
-                next = json["next"];
-            } while(true);
+                var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
+                if(json == null) throw new ApiFormatException("Null response");
+
+                foreach(var i in ((JsonArray)json["data"])) {
+                    int id = i["relationships"]["media"]["data"]["id"];
+                    var media = ((JsonArray)json["included"]).FirstOrDefault(x => x["id"] == id);
+                    var attr = (JsonObject)i["attributes"];
+                    if(media == null) throw new ApiFormatException("Null JSON entry");
+                    var m = ToManga(media);
+                    m.ListStatus = ToListStatus(attr["status"]);
+                    m.CurrentChapter = attr["progress"];
+                    m.CurrentVolume = attr["volumesOwned"];
+                    m.Notes = attr["notes"];
+                    m.UserStart = ToDateTime(attr["startedAt"]);
+                    m.UserEnd = ToDateTime(attr["finishedAt"]);
+                    ret.Add(m);
+                }
+                next = json["links"].ContainsKey("next") ? json["links"]["next"] : null;
+            } while(next != null);
+            return ret;
         }
 
         private static string FromListStatus(ApiEntry.ListStatuses status){
@@ -535,18 +574,20 @@ namespace Trackr.Api {
                     return Manga.MangaTypes.OneShot;
                 case "doujin":
                     return Manga.MangaTypes.Doujinshi;
-                case "manhwa": // Kitsu doesn't actually have this
+                case "manhwa": 
                     return Manga.MangaTypes.Manhwa;
+                case "oel":
+                    return Manga.MangaTypes.Comic;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(type), type, null);
             }
         }
 
         // On Kitsu, each item has a unique entry id. For some operations, we need it.
-        // type is either 'Anime' or 'Manga'
+        // type is either 'anime', 'manga', or 'drama'
         private async Task<int> GetEntryId(int entry, string type) {
             var response = await _client.GetAsync(
-                // filter[user_id]=&filter[kind]=&filter[_id]=
+                // ?filter[user_id]=&filter[kind]=&filter[_id]=
                 LibraryEntries + $"?filter%5Buser_id%5D={_userId}\u0026filter%5Bkind%5D={type}\u0026filter%5B{type}_id%5D={entry}");
             if(response.StatusCode != HttpStatusCode.OK) return -2;
             var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
@@ -556,20 +597,21 @@ namespace Trackr.Api {
 
         // TODO: Airtimes (possibly available through this api)
         private static Anime ToAnime(JsonValue json) {
-            if(json == null) throw new ApiFormatException("Null JSON");
+            if(json == null) return null;
             if(json["type"] != "anime")
                 throw new ApiFormatException("Unexpected type encountered");
             var attr = json["attributes"];
             
             int id = json["id"];
             string[] synonyms; // sometimes this is null
-            if(!json["attributes"].ContainsKey("abbreviatedTitles") || attr["abbreviatedTitles"] == null)
+            if(!attr.ContainsKey("abbreviatedTitles") || attr["abbreviatedTitles"] == null)
                 synonyms = new string[0];
             else {
                 synonyms = new string[attr["abbreviatedTitles"].Count];
                 for(var i = 0; i < attr["abbreviatedTitles"].Count; i++)
                     synonyms[i] = attr["abbreviatedTitles"][i];
             }
+            
             var score = attr["averageRating"] == null ? 0.0 : (double)attr["averageRating"];
             string title = attr["canonicalTitle"];
             var enTitle = attr["titles"].ContainsKey("en") ? (string)attr["titles"]["en"] : title;
@@ -578,7 +620,7 @@ namespace Trackr.Api {
             string image = attr["posterImage"]?["original"];
             var start = ToDateTime(attr["startDate"]);
             var end = ToDateTime(attr["endDate"]);
-            var episodes = attr["episodeCount"] == null ? 0 : (int)attr["episodeCount"];
+            int episodes = attr["episodeCount"] ?? 0;
             var type = ToShowType(attr["showType"]);
             Anime.RunningStatuses status;
             if(start == DateTime.MinValue) status = Anime.RunningStatuses.NotYetAired;
@@ -589,25 +631,40 @@ namespace Trackr.Api {
                 end, synopsis, image, Identifier);
         }
 
-        private static Manga ToManga(JsonValue json){
-            if(json["type"] != "manga")
+        private static Manga ToManga(JsonValue json) {
+            if(json == null) return null;
+            if(json["type"] != "manga") 
                 throw new ApiFormatException("Unexpected type encountered");
+            var attr = json["attributes"];
 
-            var synonyms = new string[json["attributes"]["abbreviatedTitles"].Count];
-            for(var i = 0; i < json["attributes"]["abbreviatedTitles"].Count; i++)
-                synonyms[i] = json["attributes"]["abbreviatedTitles"][i];
-            var start = ToDateTime(json["attributes"]["startDate"]);
-            var end = ToDateTime(json["attributes"]["endDate"]);
-            var type = ToMangaType(json["attributes"]["mangaType"]);
+            int id = json["id"];
+            string[] synonyms;
+            if(!attr.ContainsKey("abbreviatedTitles") || attr["abbreviatedTitles"] == null)
+                synonyms = new string[0];
+            else {
+                synonyms = new string[attr["abbreviatedTitles"].Count];
+                for(var i = 0; i < attr["abbreviatedTitles"].Count; i++)
+                    synonyms[i] = attr["abbreviatedTitles"][i];
+            }
+
+            var score = attr["averageRating"] == null ? 0.0 : (double)attr["averageRating"];
+            string title = attr["canonicalTitle"];
+            var enTitle = attr["titles"].ContainsKey("en") ? (string)attr["titles"]["en"] : title;
+            var romajiTitle = attr["titles"].ContainsKey("en_jp") ? (string)attr["titles"]["en_jp"] : title;
+            var jpTitle = attr["titles"].ContainsKey("ja_jp") ? (string)attr["titles"]["ja_jp"] : title;
+            string image = attr["posterImage"]?["original"];
+            var start = ToDateTime(attr["startDate"]);
+            var end = ToDateTime(attr["endDate"]);
+            int chapters = attr["chapterCount"] ?? 0;
+            int volumes = attr["volumeCount"] ?? 0;
+            var type = ToMangaType(attr["mangaType"]);
             Manga.RunningStatuses status;
             if(start == DateTime.MinValue) status = Manga.RunningStatuses.NotYetPublished;
             else if(end == DateTime.MinValue) status = Manga.RunningStatuses.Publishing;
             else status = Manga.RunningStatuses.Finished;
-
-            return new Manga(json["id"], json["attributes"]["titles"]["en_jp"],
-                json["attributes"]["titles"]["en"], json["attributes"]["titles"]["jp"],
-                synonyms, json["attributes"]["episodeCount"], 0, json["attributes"]["averageRating"],
-                type, status, start, end, json["attributes"]["synopsis"], json["attributes"]["coverImage"]["original"]);
+            string synopsis = attr["synopsis"];
+            return new Manga(id, romajiTitle, enTitle, jpTitle, synonyms, chapters, volumes, score, type, status, start,
+                end, synopsis, image);
         }
 
         private static DateTime ToDateTime(string date){

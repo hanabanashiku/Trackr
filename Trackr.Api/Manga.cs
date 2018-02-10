@@ -14,7 +14,8 @@ namespace Trackr.Api{
             OneShot,
             Doujinshi,
             Manhwa,
-            Manhua
+            Manhua,
+            Comic
         }
 
         /// <summary>
@@ -60,6 +61,11 @@ namespace Trackr.Api{
         /// The last volume the user completed.
         /// </summary>
         public int CurrentVolume { get; set; } = 0;
+        
+        /// <summary>
+        /// The user's series notes.
+        /// </summary>
+        public string Notes {get; set; } = string.Empty;
 
         internal Manga(int id, string title, string english,
             string japanese, string[] synonyms, int chapters, int volumes,

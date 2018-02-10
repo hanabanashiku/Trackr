@@ -208,9 +208,9 @@ namespace Trackr.Test {
 			var anime = _kitsu.PullAnimeList().Result;
 			foreach(var a in anime)
 				await _kitsu.RemoveAnime(a.Id);
-			/*var manga = _kitsu.PullMangaList().Result;
+			var manga = _kitsu.PullMangaList().Result;
 			foreach(var m in manga)
-				_kitsu.RemoveManga(m.Id).RunSynchronously();*/
+				await _kitsu.RemoveManga(m.Id);
 		}
 	}
 }

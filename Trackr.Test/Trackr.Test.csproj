@@ -9,7 +9,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Trackr.Test</RootNamespace>
     <AssemblyName>Trackr.Test</AssemblyName>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -32,6 +32,7 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="AniListTest.cs" />
     <Compile Include="AnimeListFallbackTest.cs" />
     <Compile Include="AnimeListTest.cs" />
     <Compile Include="KitsuTest.cs" />
@@ -54,6 +55,10 @@
       <Project>{93BE009B-C563-4291-8827-33C04D34D0CE}</Project>
       <Name>Trackr.Core</Name>
     </ProjectReference>
+    <ProjectReference Include="..\Trackr.Gui.Gtk\Trackr.Gui.Gtk.csproj">
+      <Project>{32a8c443-d4fd-4ff4-beb3-f2f163880e50}</Project>
+      <Name>Trackr.Gui.Gtk</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Trackr.List\Trackr.List.csproj">
       <Project>{DF4527EE-5F62-4019-8FEB-C578A1E106A0}</Project>
       <Name>Trackr.List</Name>
@@ -66,6 +71,12 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <Reference Include="glib-sharp, Version=2.12.0.0, Culture=neutral, PublicKeyToken=35e10195dab3c99f">
+      <HintPath>..\..\..\..\..\Library\Frameworks\Mono.framework\Versions\5.4.1\lib\mono\gac\glib-sharp\2.12.0.0__35e10195dab3c99f\glib-sharp.dll</HintPath>
+    </Reference>
+    <Reference Include="gtk-sharp, Version=2.12.0.0, Culture=neutral, PublicKeyToken=35e10195dab3c99f">
+      <HintPath>..\..\..\..\..\Library\Frameworks\Mono.framework\Versions\5.4.1\lib\mono\gac\gtk-sharp\2.12.0.0__35e10195dab3c99f\gtk-sharp.dll</HintPath>
+    </Reference>
     <Reference Include="nunit.framework, Version=3.6.1.0, Culture=neutral, PublicKeyToken=2638cd05610744eb">
       <HintPath>..\packages\NUnit.3.6.1\lib\net45\nunit.framework.dll</HintPath>
     </Reference>

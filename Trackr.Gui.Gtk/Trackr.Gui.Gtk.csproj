@@ -43,6 +43,7 @@
   <ItemGroup>
     <Compile Include="AccountDialog.cs" />
     <Compile Include="AccountsManager.cs" />
+    <Compile Include="AniListLogin.cs" />
     <Compile Include="AnimeTreeView.cs" />
     <Compile Include="AnimeWindow.cs" />
     <Compile Include="MainWindow.cs" />

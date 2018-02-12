@@ -44,6 +44,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AniList.cs" />
     <Compile Include="Anime.cs" />
     <Compile Include="Api.cs" />
     <Compile Include="ApiEntry.cs" />
@@ -54,7 +55,7 @@
     <Compile Include="Kitsu.cs" />
     <Compile Include="Manga.cs" />
     <Compile Include="MyAnimeList.cs" />
-    <Compile Include="AniList.cs" />
+    <None Include="AniList.old" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

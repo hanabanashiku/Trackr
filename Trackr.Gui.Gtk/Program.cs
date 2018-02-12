@@ -45,7 +45,7 @@ namespace Trackr.Gui.Gtk {
             // Get our lists ready (any sync them)
             AnimeList = GetAnimeList();
             MangaList = GetMangaList();
-                        
+
             // we have a settings file! Spawn our notification icon and window
             _tray = new SystemTray();
             Win = new MainWindow { Visible = Settings.ShowWindowOnStart };

@@ -90,7 +90,7 @@ namespace Trackr.Core {
         /// <param name="user">The user's username</param>
         /// <param name="pass">The user's password.</param>
         public UserPass(string user, string pass){
-            Username = user;
+            if(user != null) Username = user;
             Password = pass;
         }
 

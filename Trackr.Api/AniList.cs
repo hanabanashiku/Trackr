@@ -46,27 +46,33 @@ namespace Trackr.Api {
 		}
 
 		private async Task FetchAccessToken() {
-			var json = new JsonObject() {
-				["grant_type"] = "authorization_code",
-				["client_id"] = ClientId,
-				["client_secret"] = ClientSecret,
-				["code"] = _credentials.Password
-			};
-			var response = await _client.SendAsync(new HttpRequestMessage(HttpMethod.Post, OAuth + "token") {
-				Content = new StringContent(json.ToString(), Encoding.UTF8, ContentType)
+			var data = new FormUrlEncodedContent(new [] {
+				new KeyValuePair<string, string>("grant_type", "authorization_code"),
+				new KeyValuePair<string, string>("client_id", ClientId),
+				new KeyValuePair<string, string>("client_secret", ClientSecret),
+				new KeyValuePair<string, string>("code", _credentials.Password)
 			});
+			var response = await _client.PostAsync(OAuth + "token", data);
 			if(response.StatusCode != HttpStatusCode.OK) throw new ApiRequestException(response.StatusCode.ToString());
-			json = (JsonObject)JsonValue.Parse(await response.Content.ReadAsStringAsync());
+			var json = (JsonObject)JsonValue.Parse(await response.Content.ReadAsStringAsync());
 			if(json?["access_token"] == null) throw new ApiRequestException("Null response");
-			_client.DefaultRequestHeaders.Add("Bearer", json["access_token"]);
+			_client.DefaultRequestHeaders.Add(json["token_type"], json["access_token"]);
 			_expiration = DateTime.Now.AddSeconds(json["expires_in"]);
+			_credentials.Password = json["refresh_token"]; // always use credentials.Password. This will be the refresh token or the auth code!!
 		}
 
 		private async Task FetchUsername() {
 			if(_expiration > DateTime.Now) await FetchAccessToken();
-			const string q = "query() { Viewer { id, name } }";
-			var response = await _client.PostAsync(UrlBase, new StringContent(q));
-			if(!response.IsSuccessStatusCode) throw new ApiRequestException(response.StatusCode.ToString());
+			const string q = @"
+				{
+  					Viewer{
+    					id
+    					name
+  					}
+				}";
+			var req = new JsonObject() { ["query"] = q };
+			var response = await _client.PostAsync(UrlBase, new StringContent(req.ToString(), Encoding.UTF8, ContentType));
+			if(!response.IsSuccessStatusCode) throw new ApiRequestException(response.Content.ReadAsStringAsync().Result.ToString());
 			var json = (JsonObject)JsonValue.Parse(await response.Content.ReadAsStringAsync());
 			if(json == null) throw new ApiFormatException("Null response");
 			_credentials.Username = json["data"]["name"];
@@ -79,7 +85,7 @@ namespace Trackr.Api {
 		/// <remarks>Authentication will be done implicitly after the authentication token expires.</remarks>
 		/// <returns>True on success</returns>
 		public override async Task<bool> VerifyCredentials() {
-			if(_expiration > DateTime.Now) await FetchAccessToken();
+			if(_expiration <= DateTime.Now) await FetchAccessToken();
 			await FetchUsername();
 			return Username != null;
 		}
@@ -88,6 +94,10 @@ namespace Trackr.Api {
 			throw new System.NotImplementedException();
 		}
 
+		public Task<bool> AddManga(int id) {
+			throw new System.NotImplementedException();
+		}
+		
 		public Task<bool> RemoveManga(int id) {
 			throw new System.NotImplementedException();
 		}
@@ -105,6 +115,10 @@ namespace Trackr.Api {
 		}
 
 		public Task<bool> AddAnime(int id, ApiEntry.ListStatuses listStatus) {
+			throw new System.NotImplementedException();
+		}
+		
+		public Task<bool> AddAnime(int id) {
 			throw new System.NotImplementedException();
 		}
 

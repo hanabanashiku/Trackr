@@ -51,7 +51,7 @@ namespace Trackr.Gui.Gtk {
 		}
 
 		private void OnOk(object o, EventArgs e) {
-			_pinEntry.Text = Pin;
+			Pin = _pinEntry.Text;
 			Respond(ResponseType.Accept);
 		}
 

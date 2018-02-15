@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using Gtk;
 using Trackr.Api;
 using Trackr.Core;
@@ -24,6 +25,7 @@ namespace Trackr.Gui.Gtk {
 		public bool DefaultManga;
 		
 		private ComboBox _type;
+		private Label _userLabel, _passLabel;
 		private Entry _username, _password;
 		private Button _okButton, _cancelButton;
 		private CheckButton _defAnimeCheck, _defMangaCheck;
@@ -59,8 +61,10 @@ namespace Trackr.Gui.Gtk {
 		private void Build() {
 			_type = new ComboBox(_options);
 			_type.Changed += OnProviderChange;
+			_userLabel = new Label("Username");
 			_username = new Entry();
 			_username.Changed += OnTextChange;
+			_passLabel = new Label("Password");
 			_password = new Entry() { Visibility =  false };
 			_password.Changed += OnTextChange;
 			_defAnimeCheck = new CheckButton("Use this account for managing anime") { Name = "defAnime", Sensitive = false };
@@ -77,12 +81,12 @@ namespace Trackr.Gui.Gtk {
 			_cancelButton.Clicked += delegate { Respond(ResponseType.Cancel); };
 
 			var hb1 = new HBox();
-			hb1.PackStart(new Label("Username"), false, false, 7);
+			hb1.PackStart(_userLabel, false, false, 7);
 			hb1.Add(_username);
 			VBox.Add(hb1);
 
 			var hb2 = new HBox();
-			hb2.PackStart(new Label("Password"), false, true, 7);
+			hb2.PackStart(_passLabel, false, true, 7);
 			hb2.Add(_password);
 			VBox.Add(hb2);
 
@@ -102,16 +106,29 @@ namespace Trackr.Gui.Gtk {
 
 		// Don't submit if it isn't filled out!
 		private void OnTextChange(object o, EventArgs args) {
-			if(_username.Text.Length == 0 || _password.Text.Length == 0 || _type.Active == -1)
+			if((_type.ActiveText != "AniList") &&
+			   (_username.Text.Length == 0 || _password.Text.Length == 0 || _type.Active == -1))
 				_okButton.Sensitive = false;
 			else _okButton.Sensitive = true;
 		}
 
 		private void OnProviderChange(object o, EventArgs args) {
 			switch(_type.ActiveText) {
-					case "MyAnimeList": case "Kitsu": case "AniList":
+					case "MyAnimeList": case "Kitsu":
 						_defAnimeCheck.Sensitive = true;
 						_defMangaCheck.Sensitive = true;
+						_userLabel.Visible = true;
+						_username.Visible = true;
+						_passLabel.Visible = true;
+						_password.Visible = true;
+						break;
+					case "AniList": // AniList requires a pin!
+						_defAnimeCheck.Sensitive = true;
+						_defMangaCheck.Sensitive = true;
+						_userLabel.Visible = false;
+						_username.Visible = false;
+						_passLabel.Visible = false;
+						_password.Visible = false;
 						break;
 				default:
 					_defAnimeCheck.Active = false;
@@ -123,7 +140,7 @@ namespace Trackr.Gui.Gtk {
 			OnTextChange(o, args);
 		}
 
-		// Check if we should update the defaults
+		// Check if this account should be a default account
 		private void OnToggle(object o, EventArgs e) {
 			var box = (CheckButton) o;
 			switch(box.Name) {
@@ -133,23 +150,28 @@ namespace Trackr.Gui.Gtk {
 				case "defManga":
 					DefaultManga = _defMangaCheck.Active;
 					break;
+				default:
+					Debug.Fail("Invalid default checkbox name!");
+					break;
 			}
 		}
 		
-		private void OnOkButton(object o, EventArgs args) {
+		private async void OnOkButton(object o, EventArgs args) {
+			UserPass cred;
+			Api.Api api;
+			var res = false;
+			
 			_okButton.Sensitive = false;
 			switch(_type.ActiveText) {
 				
 				case "MyAnimeList": case "Kitsu":
-					var cred = new UserPass(_username.Text, _password.Text);
-					Api.Api api;
+					cred = new UserPass(_username.Text, _password.Text);
 					if(_type.ActiveText == "MyAnimeList")
 						api = new MyAnimeList(cred);
 					else //if(_type.ActiveText == "Kitsu")
 						api = new Kitsu(cred);
-					bool res;
 					try {
-						res = api.VerifyCredentials().Result;
+						res = await api.VerifyCredentials();
 					}
 					// ApiRequestException, WebException...
 					catch(Exception e) {
@@ -157,7 +179,7 @@ namespace Trackr.Gui.Gtk {
 							"The request has timed out.") {WindowPosition = WindowPosition.Center};
 						var ret = ed.Run();
 						ed.Destroy();
-						Console.WriteLine("[Exception] " + (e.InnerException?.Message ?? e.Message));
+						Debug.WriteLine("[Exception] " + (e.InnerException?.Message ?? e.Message));
 						
 						if(ret == (int)ResponseType.Cancel)
 							Respond(ResponseType.Reject);
@@ -177,17 +199,43 @@ namespace Trackr.Gui.Gtk {
 						if(ret == (int)ResponseType.Cancel)
 							Respond(ResponseType.Reject);
 						else _okButton.Sensitive = true;
-
 					}
 					break;
-					
+				
+				case "AniList":
+					var ad = new AniListLogin();
+					if(ad.Run() == (int)ResponseType.Accept) {
+						cred = new UserPass(null, ad.Pin);
+						api = new AniList(cred);
+						try {
+							res = await api.VerifyCredentials();
+						}
+						catch(Exception e) {
+							var ed = new MessageDialog(null, DialogFlags.DestroyWithParent, MessageType.Error, ButtonsType.OkCancel,
+								"The request has timed out.") {WindowPosition = WindowPosition.Center};
+							var ret = ed.Run();
+							ed.Destroy();
+							Debug.WriteLine("[Exception] " + (e.InnerException?.Message ?? e.Message));
+						}
+
+						if(res) {
+							Result = new Account(api.Name, api.Username, cred);
+							Respond(ResponseType.Accept);
+						}
+						else { // Likely an invalid pin!
+							var ed = new MessageDialog(null, DialogFlags.DestroyWithParent, MessageType.Error, ButtonsType.Ok,
+								"An invalid authentication pin was entered.") {WindowPosition = WindowPosition.Center};
+							ed.Run();
+							ed.Destroy();
+							Respond(ResponseType.Reject);
+						}
+					}
+					else
+						Respond(ResponseType.Reject);
+					ad.Destroy();
+					break;
 				default:
-					var md = new MessageDialog(null, DialogFlags.DestroyWithParent, MessageType.Warning, ButtonsType.Ok,
-						"The selected account type has not yet been implemented.");
-					md.WindowPosition = WindowPosition.Center;
-					md.Run();
-					md.Destroy();
-					_okButton.Sensitive = true;
+					Debug.Fail($"The account type {_type.ActiveText} has not been implemented.");
 					break;
 			}
 		}

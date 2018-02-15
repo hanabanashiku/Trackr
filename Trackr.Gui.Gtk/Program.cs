@@ -93,8 +93,7 @@ namespace Trackr.Gui.Gtk {
                         list = AnimeList.Load(new AniList(act.Credentials));
                         break;
                     default:
-                        Debug.Fail($"Invalid anime Provider '{act?.Provider}'");
-                        break;
+                        return null;
                 }
                 list.SyncStart += OnSyncStart;
                 list.SyncStop += OnSyncStop;
@@ -134,8 +133,7 @@ namespace Trackr.Gui.Gtk {
                         list = MangaList.Load(new AniList(act.Credentials));
                         break;
                     default:
-                        Debug.Fail($"Invalid manga Provider '{act?.Provider}'");
-                        break;
+                        return null;
                 }
                 list.SyncStart += OnSyncStart;
                 list.SyncStop += OnSyncStop;

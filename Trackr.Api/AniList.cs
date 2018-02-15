@@ -48,6 +48,7 @@ namespace Trackr.Api {
 		}
 
 		private async Task FetchAccessToken() {
+			Console.WriteLine("get token");
 			var data = new FormUrlEncodedContent(new [] {
 				new KeyValuePair<string, string>("grant_type", "authorization_code"),
 				new KeyValuePair<string, string>("client_id", ClientId),
@@ -76,7 +77,7 @@ namespace Trackr.Api {
 				}";
 			var req = new JsonObject() { ["query"] = q };
 			var response = await _client.PostAsync(UrlBase, new StringContent(req.ToString(), Encoding.UTF8, ContentType));
-			if(!response.IsSuccessStatusCode) throw new ApiRequestException(response.Content.ReadAsStringAsync().Result.ToString());
+			if(!response.IsSuccessStatusCode) throw new ApiRequestException(response.Content.ReadAsStringAsync().Result);
 			var json = (JsonObject)JsonValue.Parse(await response.Content.ReadAsStringAsync());
 			if(json == null) throw new ApiFormatException("Null response");
 			_credentials.Username = json["data"]["name"];
@@ -89,8 +90,8 @@ namespace Trackr.Api {
 		/// <remarks>Authentication will be done implicitly after the authentication token expires.</remarks>
 		/// <returns>True on success</returns>
 		public override async Task<bool> VerifyCredentials() {
-			if(_expiration <= DateTime.Now) await FetchAccessToken();
-			await FetchUsername();
+			if(_expiration <= DateTime.Now) FetchAccessToken().Wait();
+			FetchUsername().Wait();
 			return Username != null;
 		}
 

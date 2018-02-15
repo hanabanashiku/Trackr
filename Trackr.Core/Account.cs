@@ -22,6 +22,10 @@ namespace Trackr.Core {
 		/// </remarks>
 		public UserPass Credentials;
 
+
+		/// <param name="prov">The API provider</param>
+		/// <param name="username">The username of the account</param>
+		/// <param name="credentials">The account credentials</param>
 		public Account(string prov, string username, UserPass credentials) {
 			Provider = prov;
 			Username = username;

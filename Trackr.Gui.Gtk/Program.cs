@@ -1,9 +1,9 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using Gdk;
 using Gtk;
 using Trackr.Api;
-using Trackr.Core;
 using Trackr.List;
 using Settings = Trackr.Core.Settings;
 
@@ -32,7 +32,8 @@ namespace Trackr.Gui.Gtk {
                 Core.Program.UserSettings = Settings.Load();
             }
             finally { Settings = Core.Program.UserSettings; }
-                   
+            Debug.Assert(Settings != null);
+            
             Application.Init();
             if(force)
                 using (var s = new SettingsWindow(true)) {
@@ -77,10 +78,10 @@ namespace Trackr.Gui.Gtk {
         /// Return the correct anime list based on the default value.
         /// </summary>
         /// <returns>The retrieved AnimeList</returns>
-        public static AnimeList GetAnimeList() {
+        internal static AnimeList GetAnimeList() {
             var act = Settings.DefaultAnime;
             try {
-                AnimeList list;
+                AnimeList list = null;
                 switch(act?.Provider) {
                     case "MyAnimeList":
                         list = AnimeList.Load(new MyAnimeList(act.Credentials));
@@ -89,9 +90,11 @@ namespace Trackr.Gui.Gtk {
                         list = AnimeList.Load(new Kitsu(act.Credentials));
                         break;
                     case "AniList":
-                        throw new NotImplementedException();
+                        list = AnimeList.Load(new AniList(act.Credentials));
+                        break;
                     default:
-                        return null;
+                        Debug.Fail($"Invalid anime Provider '{act?.Provider}'");
+                        break;
                 }
                 list.SyncStart += OnSyncStart;
                 list.SyncStop += OnSyncStop;
@@ -116,10 +119,10 @@ namespace Trackr.Gui.Gtk {
 
         }
 
-        public static MangaList GetMangaList() {
+        internal static MangaList GetMangaList() {
             var act = Settings.DefaultManga;
             try {
-                MangaList list;
+                MangaList list = null;
                 switch(act?.Provider) {
                     case "MyAnimeList":
                         list = MangaList.Load(new MyAnimeList(act.Credentials));
@@ -128,9 +131,11 @@ namespace Trackr.Gui.Gtk {
                         list = MangaList.Load(new Kitsu(act.Credentials));
                         break;
                     case "AniList":
-                        throw new NotImplementedException();
+                        list = MangaList.Load(new AniList(act.Credentials));
+                        break;
                     default:
-                        return null;
+                        Debug.Fail($"Invalid manga Provider '{act?.Provider}'");
+                        break;
                 }
                 list.SyncStart += OnSyncStart;
                 list.SyncStop += OnSyncStop;

@@ -18,8 +18,7 @@ namespace Trackr.Core {
 		/// The credentials being used.
 		/// </summary>
 		/// <remarks>
-		/// For OAuth tokens (e.g. AniList), the username will be the 
-		/// token type and the password will be the token.
+		/// For OAuth tokens (e.g. AniList), the password will be the refresh token.
 		/// </remarks>
 		public UserPass Credentials;
 

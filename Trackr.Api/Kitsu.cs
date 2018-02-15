@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Net;
 using System.Net.Http;
@@ -57,7 +58,7 @@ namespace Trackr.Api {
             });
             var response = await _client.PostAsync(AuthUrl, data);
             if(response.StatusCode != HttpStatusCode.OK) {
-                Console.WriteLine("[Kitsu] " + response.StatusCode);
+                Debug.Write(response.Content.ReadAsStringAsync(), "Kitsu WARNING");
                 return false;
             }
             // store the token in the client and make a note of the expiration time.
@@ -81,6 +82,7 @@ namespace Trackr.Api {
             // some calls require the user's id
             var response = await _client.GetAsync(UrlBase + "/users?filter[self]=true");
             var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
+            Debug.WriteIf(!response.IsSuccessStatusCode, response.Content.ReadAsStringAsync(), "Kitsu WARNING");
             if(json == null || json["data"].Count == 0) return false;
             var data = ((JsonArray)json["data"]).First();
             _username = data["attributes"]["name"];
@@ -117,6 +119,7 @@ namespace Trackr.Api {
             var response = await _client.SendAsync(new HttpRequestMessage(HttpMethod.Post, LibraryEntries) {
                 Content = new StringContent(data.ToString(), Encoding.UTF8, ContentType)
             });
+            Debug.WriteIf(!response.IsSuccessStatusCode, response.Content.ReadAsStringAsync(), "Kitsu WARNING");
             return response.StatusCode == HttpStatusCode.Created;
         }
 
@@ -149,6 +152,7 @@ namespace Trackr.Api {
             var response = await _client.SendAsync(new HttpRequestMessage(HttpMethod.Post, LibraryEntries) {
                 Content = new StringContent(data.ToString(), Encoding.UTF8, ContentType),
             });
+            Debug.WriteIf(!response.IsSuccessStatusCode, response.Content.ReadAsStringAsync(), "Kitsu WARNING");
             return response.StatusCode == HttpStatusCode.Created;
         }
 
@@ -165,6 +169,7 @@ namespace Trackr.Api {
             if(entryId == -2) return false; // something went wrong
 
             var response = await _client.DeleteAsync(LibraryEntries + $"/{entryId}");
+            Debug.WriteIf(!response.IsSuccessStatusCode, response.Content.ReadAsStringAsync(), "Kitsu WARNING");
             return response.IsSuccessStatusCode; // 200OK, 204NOCONTENT
         }
 
@@ -185,7 +190,7 @@ namespace Trackr.Api {
                 if(next != null) url = next;
                 var response = await _client.GetAsync(url);
                 if(response.StatusCode != HttpStatusCode.OK) {
-                    Console.WriteLine("[Kitsu] " + response.StatusCode);
+                    Debug.Write(response.Content.ReadAsStringAsync(), "Kitsu WARNING");
                     throw new ApiRequestException(response.StatusCode.ToString());
                 }
                 var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
@@ -254,6 +259,7 @@ namespace Trackr.Api {
             var response = await _client.SendAsync(new HttpRequestMessage(new HttpMethod("PATCH"), LibraryEntries + $"/{id}") {
                 Content = new StringContent(json.ToString(), Encoding.UTF8, ContentType)
             });
+            Debug.WriteIf(!response.IsSuccessStatusCode, response.Content.ReadAsStringAsync(), "Kitsu WARNING");
             return response.IsSuccessStatusCode;
         }
 
@@ -275,7 +281,7 @@ namespace Trackr.Api {
                 if(next != null) url = next;
                 var response = await _client.GetAsync(url);
                 if(response.StatusCode != HttpStatusCode.OK) {
-                    Console.WriteLine("[Kitsu] " + response.StatusCode);
+                    Debug.Write(response.Content.ReadAsStringAsync(), "Kitsu WARNING");
                     throw new ApiRequestException(response.StatusCode.ToString());
                 }
                 var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
@@ -328,6 +334,7 @@ namespace Trackr.Api {
             var response = await _client.SendAsync(new HttpRequestMessage(HttpMethod.Post, LibraryEntries) {
                 Content = new StringContent(data.ToString(), Encoding.UTF8, ContentType),
             });
+            Debug.WriteIf(!response.IsSuccessStatusCode, response.Content.ReadAsStringAsync(), "Kitsu WARNING");
             return response.StatusCode == HttpStatusCode.Created;
         }
         
@@ -360,6 +367,7 @@ namespace Trackr.Api {
             var response = await _client.SendAsync(new HttpRequestMessage(HttpMethod.Post, LibraryEntries) {
                 Content = new StringContent(data.ToString(), Encoding.UTF8, ContentType),
             });
+            Debug.WriteIf(!response.IsSuccessStatusCode, response.Content.ReadAsStringAsync(), "Kitsu WARNING");
             return response.StatusCode == HttpStatusCode.Created;
         }
 
@@ -395,7 +403,7 @@ namespace Trackr.Api {
                 if(next != null) url = next;
                 var response = await _client.GetAsync(url);
                 if(response.StatusCode != HttpStatusCode.OK) {
-                    Console.WriteLine("[Kitsu] " + response.StatusCode);
+                    Debug.Write(response.Content.ReadAsStringAsync(), "Kitsu WARNING");
                     throw new ApiRequestException(response.StatusCode.ToString());
                 }
                 var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
@@ -462,7 +470,7 @@ namespace Trackr.Api {
                 new HttpRequestMessage(new HttpMethod("PATCH"), LibraryEntries + $"/{id}") {
                     Content = new StringContent(json.ToString(), Encoding.UTF8, ContentType)
                 });
-            Console.WriteLine(response.Content.ReadAsStringAsync().Result);
+            Debug.WriteIf(!response.IsSuccessStatusCode, response.Content.ReadAsStringAsync(), "Kitsu WARNING");
             return response.IsSuccessStatusCode;
         }
 
@@ -482,7 +490,7 @@ namespace Trackr.Api {
                 if(next != null) url = next;
                 var response = await _client.GetAsync(url);
                 if(response.StatusCode != HttpStatusCode.OK) {
-                    Console.WriteLine("[Kitsu] " + response.StatusCode);
+                    Debug.Write(response.Content.ReadAsStringAsync(), "Kitsu WARNING");
                     throw new ApiRequestException(response.StatusCode.ToString());
                 }
                 var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
@@ -522,6 +530,7 @@ namespace Trackr.Api {
                     return "on_hold";
                 // NotInList - this should never be sent to the server
                 default:
+                    Debug.Fail($"Invalid list status '{status}'");
                     throw new ArgumentOutOfRangeException(nameof(status), status, null);
             }
         }
@@ -539,6 +548,7 @@ namespace Trackr.Api {
                 case "on_hold":
                     return ApiEntry.ListStatuses.OnHold;
                 default:
+                    Debug.Fail($"Invalid list status '{status}'");
                     throw new ArgumentOutOfRangeException(nameof(status), status, null);
             }
         }
@@ -558,6 +568,7 @@ namespace Trackr.Api {
                 case "TV":
                     return Anime.ShowTypes.Tv;
                 default:
+                    Debug.Fail($"Invalid show type '{type}'");
                     throw new ArgumentOutOfRangeException(nameof(type), type, null);
             }
         }
@@ -579,12 +590,15 @@ namespace Trackr.Api {
                 case "oel":
                     return Manga.MangaTypes.Comic;
                 default:
+                    Debug.Fail($"Invalid manga type '{type}'");
                     throw new ArgumentOutOfRangeException(nameof(type), type, null);
             }
         }
 
         // On Kitsu, each item has a unique entry id. For some operations, we need it.
         // type is either 'anime', 'manga', or 'drama'
+        // -2 = Response failed
+        // -1 = Entry does not exist
         private async Task<int> GetEntryId(int entry, string type) {
             var response = await _client.GetAsync(
                 // ?filter[user_id]=&filter[kind]=&filter[_id]=
@@ -592,14 +606,14 @@ namespace Trackr.Api {
             if(response.StatusCode != HttpStatusCode.OK) return -2;
             var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
             if(json == null) throw new ApiRequestException("Null JSON");
+            if(json["data"].Count == 0) return -1;
             return json["data"][0]["id"];
         }
 
         // TODO: Airtimes (possibly available through this api)
         private static Anime ToAnime(JsonValue json) {
             if(json == null) return null;
-            if(json["type"] != "anime")
-                throw new ApiFormatException("Unexpected type encountered");
+            Debug.Assert(json["type"] == "anime");
             var attr = json["attributes"];
             
             int id = json["id"];

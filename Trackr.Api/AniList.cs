@@ -56,11 +56,12 @@ namespace Trackr.Api {
 			});
 			var response = await _client.PostAsync(OAuth + "token", data);
 			Debug.WriteIf(!response.IsSuccessStatusCode, response.Content.ReadAsStringAsync(), "AniList Token WARNING");
-			if(response.StatusCode != HttpStatusCode.OK) throw new ApiRequestException(response.StatusCode.ToString());
+			if(response.StatusCode != HttpStatusCode.OK) throw new ApiRequestException("Fetching Token: " + response.StatusCode);
 			var json = (JsonObject)JsonValue.Parse(await response.Content.ReadAsStringAsync());
 			if(json?["access_token"] == null) throw new ApiRequestException("Null response");
-			Debug.Write(json["token_type"] + " " + json["access_token"]);
-			_client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", json["access_token"]);
+			Console.WriteLine(json["token_type"] + " " + json["access_token"]);
+			//_client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", json["access_token"]);
+			_client.DefaultRequestHeaders.Add("Authorization", "Bearer " + json["access_token"]);
 			_expiration = DateTime.Now.AddSeconds(json["expires_in"]);
 			_credentials.Password = json["refresh_token"]; // always use credentials.Password. This will be the refresh token or the auth code!!
 		}

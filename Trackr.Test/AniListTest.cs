@@ -13,8 +13,8 @@ namespace Trackr.Test {
 		[OneTimeSetUp]
 		public async Task SetUp() {
 			Program.UserSettings = Settings.Load();
-			var pin =
-				"";
+			var pin = // get this pin by going to https://anilist.co/api/v2/oauth/authorize?client_id=289&response_type=code
+				"def502001fe63da0da2f55141d0bbfc6178724d9e10694f5b8af0806fc029e7f570a9a7c0938362dc5bd471d490c296e678087ce692705e0ebbdd8d1e652361443b1a2df5d113514030738c3a7c278bd161e9b756d13fae767adb0e3413b4b6d7cb93035c2ba888f1c6eece34821eeb9898dc251d5c20204f9be7a3920aaea79eb30e74ad24243c429da1931e3ed6d17078625176a681daca3afd0155a815180d48498fb5baf5f2153dcfaac47e8f9493e0605281dd15f5e78da9de77994f0720b83aa17547a4068fa1dc95cdddbfae5a94ebb0afd87f3ebea2df0b4260ad1ce554634de4f1260db69cf1d921f17e38a9d5e14a845ace1d3c7e7bb275c069188bfb4766588bbbf57a630dcdf0ef5b13f7cfdd2013607e68d3f7d6e5ebd3114c9a2b5e5bc0946a6c9b91adecae74e944f45896b4176e20ecea8241342e0f0c289f0dea023ce2ab0ce";
 			var cred = new UserPass(null, pin);
 			
 			_aniList = new AniList(cred);

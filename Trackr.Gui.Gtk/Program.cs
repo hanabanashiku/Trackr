@@ -1,6 +1,5 @@
 ﻿using System;
 using System.IO;
-using System.Reflection;
 using Gdk;
 using Gtk;
 using Trackr.Api;
@@ -42,7 +41,7 @@ namespace Trackr.Gui.Gtk {
                     if (res != (int) ResponseType.Accept)
                         Environment.Exit(0);
                 }
-            // Get our lists ready (any sync them)
+            // Get our lists ready (and sync them)
             AnimeList = GetAnimeList();
             MangaList = GetMangaList();
 

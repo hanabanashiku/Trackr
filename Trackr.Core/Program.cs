@@ -9,13 +9,7 @@ namespace Trackr.Core {
         /// </summary>
         public static readonly string AppDataPath =
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "trackr");
-        /// <summary>
-        /// Trackr's main entrypoint
-        /// </summary>
-        public static void Main(){
-            Init();
-        }
-
+ 
         /// <summary>
         /// Initialize the program
         /// </summary>
@@ -23,5 +17,6 @@ namespace Trackr.Core {
             if(UserSettings == null)
                 UserSettings = Settings.Load();
         }
+        
     }
 }

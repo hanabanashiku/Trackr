@@ -48,6 +48,7 @@ namespace Trackr.Api {
 		}
 
 		private async Task FetchAccessToken() {
+			Console.WriteLine("get token");
 			var data = new FormUrlEncodedContent(new [] {
 				new KeyValuePair<string, string>("grant_type", "authorization_code"),
 				new KeyValuePair<string, string>("client_id", ClientId),

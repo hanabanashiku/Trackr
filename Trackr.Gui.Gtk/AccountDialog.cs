@@ -211,11 +211,14 @@ namespace Trackr.Gui.Gtk {
 							res = await api.VerifyCredentials();
 						}
 						catch(Exception e) {
-							var ed = new MessageDialog(null, DialogFlags.DestroyWithParent, MessageType.Error, ButtonsType.OkCancel,
-								"The request has timed out.") {WindowPosition = WindowPosition.Center};
-							var ret = ed.Run();
+							var ed = new MessageDialog(null, DialogFlags.DestroyWithParent, MessageType.Error, ButtonsType.Ok,
+								e.InnerException?.Message ?? e.Message) {WindowPosition = WindowPosition.Center};
+							ed.Run();
 							ed.Destroy();
+							Respond(ResponseType.Reject);
 							Debug.WriteLine("[Exception] " + (e.InnerException?.Message ?? e.Message));
+							ad.Destroy();
+							return;
 						}
 
 						if(res) {
@@ -227,6 +230,7 @@ namespace Trackr.Gui.Gtk {
 								"An invalid authentication pin was entered.") {WindowPosition = WindowPosition.Center};
 							ed.Run();
 							ed.Destroy();
+							ad.Destroy();
 							Respond(ResponseType.Reject);
 						}
 					}

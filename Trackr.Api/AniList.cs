@@ -37,7 +37,7 @@ namespace Trackr.Api {
 		/// <summary>
 		/// The URL to take the user to in order to authorize Trackr.
 		/// </summary>
-		public static string RedirectUrl => OAuth + $"authorize?client_id={ClientId}&response_type=code";
+		public const string RedirectUrl = OAuth + "authorize?client_id="+ClientId+"&response_type=code";
 
 
 		public AniList(UserPass credentials) {
@@ -52,16 +52,18 @@ namespace Trackr.Api {
 				new KeyValuePair<string, string>("grant_type", "authorization_code"),
 				new KeyValuePair<string, string>("client_id", ClientId),
 				new KeyValuePair<string, string>("client_secret", ClientSecret),
+				new KeyValuePair<string, string>("redirect_uri", RedirectUrl),
 				new KeyValuePair<string, string>("code", _credentials.Password)
 			});
+			Debug.Write(_credentials.Password);
 			var response = await _client.PostAsync(OAuth + "token", data);
-			Debug.WriteIf(!response.IsSuccessStatusCode, response.Content.ReadAsStringAsync(), "AniList Token WARNING");
-			if(response.StatusCode != HttpStatusCode.OK) throw new ApiRequestException("Fetching Token: " + response.StatusCode);
+			Debug.WriteIf(!response.IsSuccessStatusCode, response.Content.ReadAsStringAsync().Result, "AniList Token WARNING");
 			var json = (JsonObject)JsonValue.Parse(await response.Content.ReadAsStringAsync());
+			if(response.StatusCode != HttpStatusCode.OK) throw new ApiRequestException(json?["message"].ToString() ?? response.StatusCode.ToString());
 			if(json?["access_token"] == null) throw new ApiRequestException("Null response");
-			Console.WriteLine(json["token_type"] + " " + json["access_token"]);
-			//_client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", json["access_token"]);
-			_client.DefaultRequestHeaders.Add("Authorization", "Bearer " + json["access_token"]);
+			//Console.WriteLine(json["token_type"] + " " + json["access_token"]);
+			_client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(json["token_type"], json["access_token"]);
+			//_client.DefaultRequestHeaders.Add("Authorization", "Bearer " + json["access_token"]);
 			_expiration = DateTime.Now.AddSeconds(json["expires_in"]);
 			_credentials.Password = json["refresh_token"]; // always use credentials.Password. This will be the refresh token or the auth code!!
 		}
@@ -77,6 +79,7 @@ namespace Trackr.Api {
 				}";
 			var req = new JsonObject() { ["query"] = q };
 			var response = await _client.PostAsync(UrlBase, new StringContent(req.ToString(), Encoding.UTF8, ContentType));
+			Debug.WriteLineIf(!response.IsSuccessStatusCode, response.Content.ReadAsStringAsync().Result, "AniList Username acquisition WARNING");
 			if(!response.IsSuccessStatusCode) throw new ApiRequestException(response.Content.ReadAsStringAsync().Result);
 			var json = (JsonObject)JsonValue.Parse(await response.Content.ReadAsStringAsync());
 			if(json == null) throw new ApiFormatException("Null response");
@@ -91,7 +94,8 @@ namespace Trackr.Api {
 		/// <returns>True on success</returns>
 		public override async Task<bool> VerifyCredentials() {
 			if(_expiration <= DateTime.Now) FetchAccessToken().Wait();
-			FetchUsername().Wait();
+			var task = FetchUsername();
+			await task;
 			return Username != null;
 		}
 

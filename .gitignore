@@ -394,3 +394,5 @@ __pycache__/
 *.xsd.cs
 
 # End of https://www.gitignore.io/api/linux,windows,intellij,monodevelop,visualstudio
+
+Trackr.Api/Resources

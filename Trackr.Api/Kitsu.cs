@@ -2,12 +2,13 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Json;
 using System.Linq;
-using System.Security.Cryptography;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -26,9 +27,21 @@ namespace Trackr.Api {
 
         private const string ContentType = "application/vnd.api+json";
         private const string AuthUrl = "https://kitsu.io/api/oauth/token";
-        // These are defaults, as app registration is not yet possible on Kitsu
-        private const string ClientId = "dd031b32d2f56c990b1425efe6c42ad847e7fe3ab46bf1299f05ecd856bdb7dd";
-        private const string ClientSecret = "54d7307928f63414defd96399fc31ba847961ceaecef3a5fd93144e960c0e151";
+
+        private static string _clientId;
+        private static string ClientId {
+            get {
+                if(_clientId == null) GetClientInfo();
+                return _clientId;
+            }
+        }
+        private static string _clientSecret;
+        private static string ClientSecret {
+            get {
+                if(_clientSecret == null) GetClientInfo();
+                return _clientSecret;
+            }
+        }
         private const string UrlBase = "https://kitsu.io/api/edge";
         private const string LibraryEntries = UrlBase + "/library-entries";
         private const string AnimeItems = UrlBase + "/anime";
@@ -701,6 +714,17 @@ namespace Trackr.Api {
             if(DateTime.Now >= _expiration) await Authenticate();
         }
 
+        private static void GetClientInfo() {
+            using(var s = Assembly.GetExecutingAssembly().GetManifestResourceStream("Trackr.Api.Resources.kitsu.json")) {
+                if(s == null) throw new ApiRequestException("Client data not found");
+                using(var r = new StreamReader(s)) {
+                    var json = (JsonObject)JsonValue.Parse(r.ReadToEnd());
+                    _clientId = json?["id"];
+                    _clientSecret = json?["secret"];
+                }
+            }
+        }
+        
         ~Kitsu(){
             _client.Dispose();
         }

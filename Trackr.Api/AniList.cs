@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Json;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -25,8 +27,18 @@ namespace Trackr.Api {
 		
 		private const string UrlBase = "https://graphql.anilist.co";
 		private const string OAuth = "https://anilist.co/api/v2/oauth/";
-		private const string ClientId = "289";
-        private const string ClientSecret = "SS3LOMIbG2hvfIgPoWcxVXdFGGDLI687owlfGbSa";
+		private static string _clientId;
+		private static string ClientId {
+			get { if(_clientId == null) GetClientInfo();
+				return _clientId;
+			}
+		}
+		private static string _clientSecret;
+		private static string ClientSecret {
+			get { if(_clientSecret == null) GetClientInfo();
+				return _clientSecret;
+			}
+		}
 		private const string ContentType = "application/json";
 
 		private readonly HttpClient _client;
@@ -37,7 +49,7 @@ namespace Trackr.Api {
 		/// <summary>
 		/// The URL to take the user to in order to authorize Trackr.
 		/// </summary>
-		public const string RedirectUrl = OAuth + "authorize?client_id="+ClientId+"&response_type=code";
+		public static string RedirectUrl => OAuth + "authorize?client_id="+ClientId+"&response_type=code";
 
 
 		public AniList(UserPass credentials) {
@@ -45,6 +57,7 @@ namespace Trackr.Api {
 			_expiration = DateTime.Now;
 			_client = new HttpClient();
 			_credentials.Username = null; // this is how we verify the credentials
+			
 		}
 
 		private async Task FetchAccessToken() {
@@ -145,6 +158,17 @@ namespace Trackr.Api {
 
 		public Task<List<Anime>> PullAnimeList() {
 			throw new System.NotImplementedException();
+		}
+
+		private static void GetClientInfo() {
+			using(var s = Assembly.GetExecutingAssembly().GetManifestResourceStream("Trackr.Api.Resources.anilist.json")) {
+				if(s == null) throw new ApiRequestException("Client data not found");
+				using(var r = new StreamReader(s)) {
+					var json = (JsonObject)JsonValue.Parse(r.ReadToEnd());
+					_clientId = json?["id"];
+					_clientSecret = json?["secret"];
+				}
+			}
 		}
 	}
 }

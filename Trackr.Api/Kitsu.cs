@@ -10,6 +10,8 @@ using System.Json;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Trackr.Core;
@@ -46,6 +48,7 @@ namespace Trackr.Api {
         private const string LibraryEntries = UrlBase + "/library-entries";
         private const string AnimeItems = UrlBase + "/anime";
         private const string MangaItems = UrlBase + "/manga";
+        private const string EpisodeItems = UrlBase + "/episodes";
         private static readonly string[] DateFormat = new string[] { "yyyy-MM-dd", "yyyy-MM-ddTHH:mm:ss.fffZ" };
 
         private readonly HttpClient _client;
@@ -198,12 +201,12 @@ namespace Trackr.Api {
             var ret = new List<Anime>(); // ?filter[text]=&page[limit]=20&page[offset]=0
             var url = AnimeItems + $"?filter%5Btext%5D={keywords}\u0026page%5Blimit\u00265D=20\u0026page%5Boffset%5D=0";
             string next = null;
-            var count = 0;
+            var count = 0; // limiting value
             do {
                 if(next != null) url = next;
                 var response = await _client.GetAsync(url);
                 if(response.StatusCode != HttpStatusCode.OK) {
-                    Debug.Write(response.Content.ReadAsStringAsync(), "Kitsu WARNING");
+                    Debug.Write(await response.Content.ReadAsStringAsync(), "Kitsu WARNING");
                     throw new ApiRequestException(response.StatusCode.ToString());
                 }
                 var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
@@ -213,6 +216,63 @@ namespace Trackr.Api {
                 count++;
             } while(count <= 5 && next != null);
             return ret;
+        }
+
+        /// <summary>
+        /// Get list of episodes
+        /// </summary>
+        /// <param name="animeId">The anime to get episodes for</param>
+        /// <returns>A list of all episodes, indexed by episode number.</returns>
+        /// <exception cref="ApiRequestException" />
+        /// <remarks>The API will only return 20 episodes at a time, so for large episodes, this may make a lot of calls...</remarks>
+        public static async Task<List<AnimeEpisode>> GetEpisodes(int animeId) {
+            var ret = new List<AnimeEpisode>();
+            var client = new HttpClient();
+            var url = EpisodeItems + $"?filter%5BmediaId%5D={animeId}&page%5Blimit%5D=20";
+            string next = null;
+            do {
+                if(next != null) url = next;
+                var response = await client.GetAsync(url);
+                if(response.StatusCode != HttpStatusCode.OK) {
+                    Debug.Write(await response.Content.ReadAsStringAsync(), "Kitsu Episode WARNING");
+                    throw new ApiRequestException(response.StatusCode.ToString());
+                }
+                var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
+                if(json == null) throw new ApiRequestException("Null response");
+                foreach(var e in (JsonArray)json["data"]) {
+                    var ep = ToEpisode(e);
+                    ret[(int)ep.Number] = ep;
+                }
+                next = json["links"].ContainsKey("next") ? json["links"]["next"] : null;
+            } while(next != null);
+            return ret;
+        }
+
+        /// <summary>
+        /// Get list of episodes
+        /// </summary>
+        /// <param name="animeId"></param>
+        /// <param name="offset">The episode to start at</param>
+        /// <param name="list">The list of episodes to append to.</param>
+        /// <returns>A 0 if empty response, the next offset, otherwise</returns>
+        /// <remarks>This is a much better idea, and good for scrolling UIs.
+        /// The episodes added are indexed by episode number.</remarks>
+        public static int GetEpisodes(int animeId, int offset, ref List<AnimeEpisode> list) {
+            var client = new HttpClient();
+            var url = EpisodeItems + $"?filter%5BmediaId%5D={animeId}&page%5Blimit%5D=20&page%5Boffset%5D={offset}";
+            var response = client.GetAsync(url).Result;
+            if(response.StatusCode != HttpStatusCode.OK) {
+                Debug.Write(response.Content.ReadAsStringAsync().Result, "Kitsu Episode WARNING");
+                throw new ApiRequestException(response.StatusCode.ToString());
+            }
+            var json = JsonValue.Parse(response.Content.ReadAsStringAsync().Result);
+            if(json == null) throw new ApiRequestException("Null response");
+            if((JsonArray)json["data"].Count == 0) return 0;
+            foreach(var e in (JsonArray)json["data"]) {
+                var ep = ToEpisode(e);
+                list[(int)ep.Number] = ep;
+            }
+            return offset + 20;
         }
 
         /// <summary>
@@ -692,6 +752,13 @@ namespace Trackr.Api {
             string synopsis = attr["synopsis"];
             return new Manga(id, romajiTitle, enTitle, jpTitle, synonyms, chapters, volumes, score, type, status, start,
                 end, synopsis, image);
+        }
+
+        private static AnimeEpisode ToEpisode(JsonValue json) {
+            if(json == null) return null;
+            var eng = json["attributes"]["titles"].ContainsKey("en_us") ? (string)json["attributes"]["titles"]["en_us"] : (string)json["attributes"]["canonicalTitle"];
+            var jp = json["attributes"]["titles"].ContainsKey("ja_jp") ? (string)json["attributes"]["titles"]["ja_jp"] : (string)json["attributes"]["canonicalTitle"];
+            return new AnimeEpisode(ToDateTime(json["attributes"]["airdate"]), json["attributes"]["number"], json["attributes"]["season"] ?? 0, eng, jp, json["attributes"]["synopsis"]);
         }
 
         private static DateTime ToDateTime(string date){

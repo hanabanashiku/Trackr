@@ -46,6 +46,7 @@
   <ItemGroup>
     <Compile Include="AniList.cs" />
     <Compile Include="Anime.cs" />
+    <Compile Include="AnimeEpisode.cs" />
     <Compile Include="Api.cs" />
     <Compile Include="ApiEntry.cs" />
     <Compile Include="ApiFormatException.cs" />

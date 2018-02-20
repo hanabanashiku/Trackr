@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Json;
@@ -27,7 +28,7 @@ namespace Trackr.Api {
 		
 		private const string UrlBase = "https://graphql.anilist.co";
 		private const string OAuth = "https://anilist.co/api/v2/oauth/";
-		private const string PinUrl = "https://anilist.co/api/v2/oauth/pin";
+		//private const string PinUrl = "https://anilist.co/api/v2/oauth/pin";
 		private static string _clientId;
 		private static string ClientId {
 			get { if(_clientId == null) GetClientInfo();
@@ -108,7 +109,83 @@ namespace Trackr.Api {
 			await FetchUsername();
 			return Username != null;
 		}
+			
+		public async Task<bool> AddAnime(int id, ApiEntry.ListStatuses listStatus) {
+			if(_expiration <= DateTime.Now) await Authenticate();
 
+			const string q = @"
+				{
+					mutation ($id: Int, $status: MediaListStatus) {
+						SaveMediaListEntry (mediaId: $id, status: $status) {
+							mediaId
+					}
+				}
+			";
+			
+			var req = new JsonObject() {
+				["query"] = q,
+				["variables"] = new JsonObject() {
+					["id"] = id,
+					["status"] = FromListStatus(listStatus)
+				}
+			};
+
+			var response = await _client.PostAsync(UrlBase, new StringContent(req, Encoding.UTF8, ContentType));
+			var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
+			if(!response.IsSuccessStatusCode) {
+				Debug.WriteLine(json?["errors"] ?? response.StatusCode.ToString(), "AniList AddAnime WARNING");
+				throw new ApiRequestException(json?["errors"]?["message"] ?? response.StatusCode.ToString());
+			}
+
+			return id == json?["data"]?["SaveMediaListEntry"]["mediaId"];
+		}
+		
+		public async Task<bool> AddAnime(int id) {
+			if(_expiration <= DateTime.Now) await Authenticate();
+
+			const string q = @"
+				{
+					mutation ($id: Int, $status: MediaListStatus) {
+						SaveMediaListEntry (mediaId: $id, status: $status) {
+							mediaId
+					}
+				}
+			";
+			
+			var req = new JsonObject() {
+				["query"] = q,
+				["variables"] = new JsonObject() {
+					["id"] = id,
+					["status"] = FromListStatus(ApiEntry.ListStatuses.Current)
+				}
+			};
+
+			var response = await _client.PostAsync(UrlBase, new StringContent(req, Encoding.UTF8, ContentType));
+			var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
+			if(!response.IsSuccessStatusCode) {
+				Debug.WriteLine(json?["errors"] ?? response.StatusCode.ToString(), "AniList AddAnime WARNING");
+				throw new ApiRequestException(json?["errors"]?["message"] ?? response.StatusCode.ToString());
+			}
+
+			return id == json?["data"]?["SaveMediaListEntry"]["mediaId"];
+		}
+
+		public Task<bool> RemoveAnime(int id) {
+			throw new System.NotImplementedException();
+		}
+
+		public Task<List<Anime>> FindAnime(string keywords) {
+			throw new System.NotImplementedException();
+		}
+
+		public Task<bool> UpdateAnime(Anime anime) {
+			throw new System.NotImplementedException();
+		}
+
+		public Task<List<Anime>> PullAnimeList() {
+			throw new System.NotImplementedException();
+		}
+		
 		public Task<bool> AddManga(int id, ApiEntry.ListStatuses listStatus) {
 			throw new System.NotImplementedException();
 		}
@@ -133,30 +210,6 @@ namespace Trackr.Api {
 			throw new System.NotImplementedException();
 		}
 
-		public Task<bool> AddAnime(int id, ApiEntry.ListStatuses listStatus) {
-			throw new System.NotImplementedException();
-		}
-		
-		public Task<bool> AddAnime(int id) {
-			throw new System.NotImplementedException();
-		}
-
-		public Task<bool> RemoveAnime(int id) {
-			throw new System.NotImplementedException();
-		}
-
-		public Task<List<Anime>> FindAnime(string keywords) {
-			throw new System.NotImplementedException();
-		}
-
-		public Task<bool> UpdateAnime(Anime anime) {
-			throw new System.NotImplementedException();
-		}
-
-		public Task<List<Anime>> PullAnimeList() {
-			throw new System.NotImplementedException();
-		}
-
 		private static void GetClientInfo() {
 			using(var s = Assembly.GetExecutingAssembly().GetManifestResourceStream("Trackr.Api.Resources.anilist.json")) {
 				if(s == null) throw new ApiRequestException("Client data not found");
@@ -165,6 +218,42 @@ namespace Trackr.Api {
 					_clientId = json?["id"];
 					_clientSecret = json?["secret"];
 				}
+			}
+		}
+
+		private static string FromListStatus(ApiEntry.ListStatuses status) {
+			switch(status) {
+					case ApiEntry.ListStatuses.Current:
+						return "CURRENT";
+					case ApiEntry.ListStatuses.Planned:
+						return "PLANNING";
+					case ApiEntry.ListStatuses.Completed:
+						return "COMPLETED";
+					case ApiEntry.ListStatuses.Dropped:
+						return "DROPPED";
+					case ApiEntry.ListStatuses.OnHold:
+						return "PAUSED";
+					default:
+						Debug.WriteLine("Invalid list status encountered: NotInList!", "AniList ListStatus WARNING");
+						throw new InvalidEnumArgumentException(nameof(status), (int)status, typeof(ApiEntry.ListStatuses));
+			}
+		}
+
+		private static ApiEntry.ListStatuses ToListStatus(string status) {
+			switch(status) {
+					case "CURRENT": case "REPEATING":
+						return ApiEntry.ListStatuses.Current;
+					case "PLANNING":
+						return ApiEntry.ListStatuses.Planned;
+					case "COMPLETED":
+						return ApiEntry.ListStatuses.Completed;
+					case "DROPPED":
+						return ApiEntry.ListStatuses.Dropped;
+					case "PAUSED":
+						return ApiEntry.ListStatuses.OnHold;
+					default:
+						Debug.WriteLine($"Invalid list status encountered: {status}", "AniList ListStatus WARNING");
+						throw new InvalidEnumArgumentException("Invalid list status type encountered");
 			}
 		}
 	}

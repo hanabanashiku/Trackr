@@ -10,9 +10,11 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Reflection;
 using System.Runtime.InteropServices.ComTypes;
+using System.Security.Cryptography.Xml;
+using System.Security.Permissions;
 using System.Text;
 using System.Threading.Tasks;
-
+using System.Xml.Xsl.Runtime;
 using Trackr.Core;
 
 namespace Trackr.Api {
@@ -264,14 +266,109 @@ namespace Trackr.Api {
 			return ret;
 		}
 
-		public Task<bool> UpdateAnime(Anime anime) {
-			throw new System.NotImplementedException();
+		public async Task<bool> UpdateAnime(Anime anime) {
+			if(_expiration <= DateTime.Now) await Authenticate();
+			var id = await GetEntryId(anime.Id);
+			if(id == -1) {
+				Debug.WriteLine("Anime not in database", "AniList update WARNING");
+				return false;
+			}
+
+			const string q = @"
+				{
+					mutation($id: Int, $status: MediaListStatus, $score: Float, $progress: Int, $notes: String, $start: FuzzyDateInput, $end: FuzzyDateInput) {
+						SaveMediaListEntry(id: $id, status: $status, score(POINT_10): $score, progress: $progress, notes: $notes, startedAt: $start, completedAt: $end){
+							id
+							mediaId
+						}
+					}
+				}
+			";
+			
+			var req = new JsonObject() {
+				["query"] = q,
+				["variables"] = new JsonObject() {
+					["id"] = id,
+					["status"] = FromListStatus(anime.ListStatus),
+					["score"] = anime.UserScore,
+					["progress"] = anime.CurrentEpisode,
+					["notes"] = anime.Notes,
+					["start"] = FromDateTime(anime.UserStart),
+					["end"] = FromDateTime(anime.UserEnd)
+				}
+			};
+
+			var response = await _client.PostAsync(UrlBase, new StringContent(req, Encoding.UTF8, ContentType));
+			var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
+			if(!response.IsSuccessStatusCode) {
+				Debug.WriteLine(json?["errors"] ?? response.StatusCode.ToString(), "AniList UpdateAnime WARNING");
+				throw new ApiRequestException(json?["errors"]?["message"] ?? response.StatusCode.ToString());
+			}
+			Debug.WriteLineIf(
+				id != json?["data"]["SaveMediaListEntry"]["id"] || anime.Id != json["data"]["SaveMediaListEntry"]["mediaId"],
+				"The parameters returned don't match!", "AniList UpdateAnime WARNING");
+			return true;
 		}
 
-		public Task<List<Anime>> PullAnimeList() {
-			throw new System.NotImplementedException();
+		public async Task<List<Anime>> PullAnimeList() {
+			if(_expiration <= DateTime.Now) await Authenticate();
+			var ret = new List<Anime>();
+			JsonValue json;
+
+			const string q = @"
+				{
+					query($pg : Int, $per: Int, $id: Int) {
+						Page(page: $pg, perPage: $per) {
+							pageInfo {
+								hasNextPage
+							}
+							
+							MediaList(userId: $id, type: ANIME) {
+								status
+								score(POINT_10)
+								progress
+								notes
+								startedAt
+								completedAt
+								media
+							}
+						}
+					}
+				}
+			";
+			var pg = 1;
+			do {
+				var req = new JsonObject() {
+					["query"] = q,
+					["variables"] = new JsonObject() {
+						["pg"] = pg,
+						["per"] = 50,
+						["id"] = _userId
+					}
+				};
+				var response = await _client.PostAsync(UrlBase, new StringContent(req, Encoding.UTF8, ContentType));
+				json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
+				if(json == null) throw new ApiRequestException("Null JSON");
+				if(!response.IsSuccessStatusCode) {
+					Debug.WriteLine(json["errors"] ?? response.StatusCode.ToString(), "AniList AddAnime WARNING");
+					throw new ApiRequestException(json["errors"]?["message"] ?? response.StatusCode.ToString());
+				}
+
+				foreach(JsonObject x in json["data"]["Page"]["MediaList"]) {
+					var a = ToAnime(x["media"]);
+					a.ListStatus = ToListStatus(x["status"]);
+					a.UserScore = x["score"];
+					a.CurrentEpisode = x["progress"];
+					a.Notes = x["notes"];
+					a.UserStart = ToDateTime(x["startedAt"]);
+					a.UserEnd = ToDateTime(x["completedAt"]);
+					ret.Add(a);
+				}
+				pg++;
+			} while(json["data"]["Page"]["pageInfo"]["hasNextPage"]);
+			return ret;
 		}
-		
+
 		public Task<bool> AddManga(int id, ApiEntry.ListStatuses listStatus) {
 			throw new System.NotImplementedException();
 		}
@@ -410,10 +507,17 @@ namespace Trackr.Api {
 		}
 
 		private static DateTime ToDateTime(JsonValue d) {
+			if(d["year"] == null && d["month"] == null && d["day"] == null) return DateTime.MinValue;
 			return new DateTime(d["year"], d["month"], d["day"]);
 		}
 
 		private static JsonObject FromDateTime(DateTime d) {
+			if(d == DateTime.MinValue)
+				return new JsonObject() {
+					["year"] = null,
+					["month"] = null,
+					["day"] = null
+				};
 			return new JsonObject() {
 				["year"] = d.Year,
 				["month"] = d.Month,

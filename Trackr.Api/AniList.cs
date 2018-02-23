@@ -9,12 +9,8 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Reflection;
-using System.Runtime.InteropServices.ComTypes;
-using System.Security.Cryptography.Xml;
-using System.Security.Permissions;
 using System.Text;
 using System.Threading.Tasks;
-using System.Xml.Xsl.Runtime;
 using Trackr.Core;
 
 namespace Trackr.Api {
@@ -369,24 +365,120 @@ namespace Trackr.Api {
 			return ret;
 		}
 
-		public Task<bool> AddManga(int id, ApiEntry.ListStatuses listStatus) {
-			throw new System.NotImplementedException();
+		public async Task<bool> AddManga(int id, ApiEntry.ListStatuses listStatus) {
+			return await AddAnime(id, listStatus); // Exact same request, anime and manga ids are unique!
 		}
 
-		public Task<bool> AddManga(int id) {
-			throw new System.NotImplementedException();
+		public async Task<bool> AddManga(int id) {
+			return await AddAnime(id);
 		}
 		
-		public Task<bool> RemoveManga(int id) {
-			throw new System.NotImplementedException();
+		public async Task<bool> RemoveManga(int id) {
+			return await RemoveAnime(id);
 		}
 
-		public Task<bool> UpdateManga(Manga manga) {
-			throw new System.NotImplementedException();
-		}
+		public async Task<List<Manga>> FindManga(string keywords) {
+			if(_expiration <= DateTime.Now) await Authenticate();
 
-		public Task<List<Manga>> FindManga(string keywords) {
-			throw new System.NotImplementedException();
+			const string q = @"
+				{
+					query($keywords: String, $page: Int, $per: Int){
+						Page(page: $page, perPage: $per){
+							pageInfo{
+								hasNextPage
+							}
+						
+						Media(search: $keywords, type: MANGA){
+							id
+							title {
+								romaji
+								english
+								native
+							}
+							format
+							mediaStatus
+							description
+							startDate
+							endDate
+							chapters
+							volumes
+							coverInage
+							synonyms
+							averageScore
+						}
+					}
+				}
+			";
+			var page = 1;
+			var ret = new List<Manga>();
+			JsonValue json;
+			do {
+				var req = new JsonObject() {
+					["query"] = q,
+					["variables"] = new JsonObject() {
+						["keywords"] = keywords,
+						["page"] = page,
+						["per"] = 50
+					}
+				};
+				var response = await _client.PostAsync(UrlBase, new StringContent(req, Encoding.UTF8, ContentType));
+				json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
+				if(json == null) throw new ApiRequestException("Null JSON");
+				if(!response.IsSuccessStatusCode) {
+					Debug.WriteLine(json["errors"] ?? response.StatusCode.ToString(), "AniList Remove WARNING");
+					throw new ApiRequestException(json["errors"]?["message"] ?? response.StatusCode.ToString());
+				}
+				ret.AddRange(from m in (JsonArray)json["data"]["media"] select ToManga(m));
+				page++;
+			} while(json["data"]["Page"]["pageInfo"]["hasNextPage"] && page < 3);
+			return ret;
+		}
+		
+		public async Task<bool> UpdateManga(Manga manga) {
+			if(_expiration <= DateTime.Now) await Authenticate();
+
+			var id = await GetEntryId(manga.Id);
+			if(id == -1) {
+				Debug.WriteLine("Manga not in database", "Manga update WARNING");
+				return false;
+			}
+
+			const string q = @"
+				{
+					mutation($id: Int, $status: MediaListStatus, $score: Float, $ch: Int, $vol: Int, $notes: String, $start: FuzzyDateInput, $end: FuzzyDateInput) {
+						  SaveMediaListEntry(id: $id, status: $status, score(POINT_10): $score, progress: $ch, progressVolumes: $vol, notes: $notes, startedAt: $start, completedAt: $end) {
+							id
+							mediaId
+						}
+					}
+				}			
+			";
+			
+			var req = new JsonObject() {
+				["query"] = q,
+				["variables"] = new JsonObject() {
+					["id"] = id,
+					["status"] = FromListStatus(manga.ListStatus),
+					["score"] = manga.UserScore,
+					["ch"] = manga.CurrentChapter,
+					["vol"] = manga.CurrentVolume,
+					["notes"] = manga.Notes,
+					["start"] = FromDateTime(manga.UserStart),
+					["end"] = FromDateTime(manga.UserEnd)
+				}
+			};
+
+			var response = await _client.PostAsync(UrlBase, new StringContent(req, Encoding.UTF8, ContentType));
+			var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
+			if(json == null) throw new ApiRequestException("Null JSON");
+			if(!response.IsSuccessStatusCode) {
+				Debug.WriteLine(json?["errors"] ?? response.StatusCode.ToString(), "AniList UpdateAnime WARNING");
+				throw new ApiRequestException(json?["errors"]?["message"] ?? response.StatusCode.ToString());
+			}
+			Debug.WriteLineIf(
+				id != json?["data"]["SaveMediaListEntry"]["id"] || manga.Id != json["data"]["SaveMediaListEntry"]["mediaId"],
+				"The parameters returned don't match!", "AniList UpdateManga WARNING");
+			return true;
 		}
 
 		public Task<List<Manga>> PullMangaList() {
@@ -472,6 +564,20 @@ namespace Trackr.Api {
 			}
 		}
 
+		private static Manga.RunningStatuses ToMangaStatus(string status) {
+			switch(status) {
+				case "FINISHED":
+					return Manga.RunningStatuses.Finished;
+				case "RELEASING":
+					return Manga.RunningStatuses.Publishing;
+				case "NOT_YET_AIRED": case "CANCELLED":
+					return Manga.RunningStatuses.NotYetPublished;
+				default:
+					Debug.WriteLine($"Invalid running status encountered: {status}", "AniList RunningStatus WARNING");
+					throw new InvalidEnumArgumentException("Invalid running status type encountered");
+			}
+		}
+
 		private static Anime.ShowTypes ToShowType(string type) {
 			switch(type) {
 					case "TV": case "TV_SHORT":
@@ -543,6 +649,27 @@ namespace Trackr.Api {
 			double score = a["averageScore"];
 			return new Anime(id, romaji, english, native, synonyms, episodes, null, score, type, status, start, end, synopsis,
 				image, Identifier);
+		}
+
+		private static Manga ToManga(JsonValue m) {
+			int id = m["id"];
+			string romaji = m["title"]["romaji"];
+			string english = m["title"]["english"] ?? romaji;
+			string native = m["title"]["native"] ?? romaji;
+			var type = ToMangaType(m["format"]);
+			var status = ToMangaStatus(m["MediaStatus"]);
+			string synopsis = m["description"];
+			var start = ToDateTime(m["startDate"]);
+			var end = ToDateTime(m["endDate"]);
+			int chapters = m["chapters"];
+			int volumes = m["volumes"];
+			string image = m["coverImage"]["large"];
+			var synonyms = new string[m["synonyms"].Count];
+			for(var i = 0; i < synonyms.Length; i++)
+				synonyms[i] = m["synonyms"][i];
+			double score = m["averageScore"];
+			return new Manga(id, romaji, english, native, synonyms, chapters, volumes, score, type, status, start, end, synopsis,
+				image);
 		}
 		
 		private static void GetClientInfo() {

@@ -1,6 +1,7 @@
 ﻿using System;
 
 namespace Trackr.Api {
+	[Serializable]
 	public class AnimeEpisode {
 		/// <summary>
 		/// The date the episode aired.

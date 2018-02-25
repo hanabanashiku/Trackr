@@ -11,9 +11,11 @@ using System.Net.Http.Headers;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+
 using Trackr.Core;
 
 namespace Trackr.Api {
+	[Serializable]
 	public class AniList : Api, IAnime, IManga {
 		public const string Identifier = "AniList";
 		/// <summary>
@@ -111,8 +113,6 @@ namespace Trackr.Api {
 		}
 			
 		public async Task<bool> AddAnime(int id, ApiEntry.ListStatuses listStatus) {
-			if(_expiration <= DateTime.Now) await Authenticate();
-
 			const string q = @"
 				{
 					mutation($id: Int, $status: MediaListStatus) {
@@ -121,28 +121,16 @@ namespace Trackr.Api {
 					}
 				}
 			";
-			
-			var req = new JsonObject() {
-				["query"] = q,
-				["variables"] = new JsonObject() {
-					["id"] = id,
-					["status"] = FromListStatus(listStatus)
-				}
+
+			var v = new JsonObject() {
+				["id"] = id,
+				["status"] = FromListStatus(listStatus)
 			};
-
-			var response = await _client.PostAsync(UrlBase, new StringContent(req, Encoding.UTF8, ContentType));
-			var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
-			if(!response.IsSuccessStatusCode) {
-				Debug.WriteLine(json?["errors"] ?? response.StatusCode.ToString(), "AniList AddAnime WARNING");
-				throw new ApiRequestException(json?["errors"]?["message"] ?? response.StatusCode.ToString());
-			}
-
+			var json = await SendRequest(q, v);
 			return id == json?["data"]?["SaveMediaListEntry"]["mediaId"];
 		}
 		
 		public async Task<bool> AddAnime(int id) {
-			if(_expiration <= DateTime.Now) await Authenticate();
-
 			const string q = @"
 				{
 					mutation($id: Int, $status: MediaListStatus) {
@@ -151,27 +139,17 @@ namespace Trackr.Api {
 					}
 				}
 			";
-			
-			var req = new JsonObject() {
-				["query"] = q,
-				["variables"] = new JsonObject() {
-					["id"] = id,
-					["status"] = FromListStatus(ApiEntry.ListStatuses.Current)
-				}
+
+			var v = new JsonObject() {
+				["id"] = id,
+				["status"] = FromListStatus(ApiEntry.ListStatuses.Current)
 			};
 
-			var response = await _client.PostAsync(UrlBase, new StringContent(req, Encoding.UTF8, ContentType));
-			var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
-			if(!response.IsSuccessStatusCode) {
-				Debug.WriteLine(json?["errors"] ?? response.StatusCode.ToString(), "AniList AddAnime WARNING");
-				throw new ApiRequestException(json?["errors"]?["message"] ?? response.StatusCode.ToString());
-			}
-
+			var json = await SendRequest(q, v);
 			return id == json?["data"]?["SaveMediaListEntry"]["mediaId"];
 		}
 
 		public async Task<bool> RemoveAnime(int id) {
-			if(_expiration <= DateTime.Now) await Authenticate();
 			var getId = GetEntryId(id);
 
 			const string q = @"
@@ -187,27 +165,14 @@ namespace Trackr.Api {
 				Debug.WriteLine("Entry already removed", "AniList Remove WARNING");
 				return true;
 			}
-			var req = new JsonObject() {
-				["query"] = q,
-				["variables"] = new JsonObject() {
-					["id"] = entryId
-				}
+			var v = new JsonObject() {
+				["id"] = entryId
 			};
-
-			var response = await _client.PostAsync(UrlBase, new StringContent(req, Encoding.UTF8, ContentType));
-			var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
-			if(json == null) throw new ApiRequestException("Null JSON");
-			if(!response.IsSuccessStatusCode) {
-				Debug.WriteLine(json["errors"] ?? response.StatusCode.ToString(), "AniList Remove WARNING");
-				throw new ApiRequestException(json["errors"]?["message"] ?? response.StatusCode.ToString());
-			}
-
+			var json = await SendRequest(q, v);
 			return json["data"]["DeleteMediaListEntry"]["deleted"];
 		}
 
 		public async Task<List<Anime>> FindAnime(string keywords) {
-			if(_expiration <= DateTime.Now) await Authenticate();
-
 			const string q = @"
 				{
 					query($keywords: String, $page: Int, $per: Int){
@@ -241,21 +206,12 @@ namespace Trackr.Api {
 			var ret = new List<Anime>();
 			JsonValue json;
 			do {
-				var req = new JsonObject() {
-					["query"] = q,
-					["variables"] = new JsonObject() {
-						["keywords"] = keywords,
-						["page"] = page,
-						["per"] = 50
-					}
+				var v = new JsonObject() {
+					["keywords"] = keywords,
+					["page"] = page,
+					["per"] = 50
 				};
-				var response = await _client.PostAsync(UrlBase, new StringContent(req, Encoding.UTF8, ContentType));
-				json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
-				if(json == null) throw new ApiRequestException("Null JSON");
-				if(!response.IsSuccessStatusCode) {
-					Debug.WriteLine(json["errors"] ?? response.StatusCode.ToString(), "AniList Remove WARNING");
-					throw new ApiRequestException(json["errors"]?["message"] ?? response.StatusCode.ToString());
-				}
+				json = await SendRequest(q, v);
 				ret.AddRange(from a in (JsonArray)json["data"]["media"] select ToAnime(a));
 				page++;
 			} while(json["data"]["Page"]["pageInfo"]["hasNextPage"] && page < 3);
@@ -263,7 +219,6 @@ namespace Trackr.Api {
 		}
 
 		public async Task<bool> UpdateAnime(Anime anime) {
-			if(_expiration <= DateTime.Now) await Authenticate();
 			var id = await GetEntryId(anime.Id);
 			if(id == -1) {
 				Debug.WriteLine("Anime not in database", "AniList update WARNING");
@@ -280,26 +235,18 @@ namespace Trackr.Api {
 					}
 				}
 			";
-			
-			var req = new JsonObject() {
-				["query"] = q,
-				["variables"] = new JsonObject() {
-					["id"] = id,
-					["status"] = FromListStatus(anime.ListStatus),
-					["score"] = anime.UserScore,
-					["progress"] = anime.CurrentEpisode,
-					["notes"] = anime.Notes,
-					["start"] = FromDateTime(anime.UserStart),
-					["end"] = FromDateTime(anime.UserEnd)
-				}
+
+			var v = new JsonObject() {
+				["id"] = id,
+				["status"] = FromListStatus(anime.ListStatus),
+				["score"] = anime.UserScore,
+				["progress"] = anime.CurrentEpisode,
+				["notes"] = anime.Notes,
+				["start"] = FromDateTime(anime.UserStart),
+				["end"] = FromDateTime(anime.UserEnd)
 			};
 
-			var response = await _client.PostAsync(UrlBase, new StringContent(req, Encoding.UTF8, ContentType));
-			var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
-			if(!response.IsSuccessStatusCode) {
-				Debug.WriteLine(json?["errors"] ?? response.StatusCode.ToString(), "AniList UpdateAnime WARNING");
-				throw new ApiRequestException(json?["errors"]?["message"] ?? response.StatusCode.ToString());
-			}
+			var json = await SendRequest(q, v);
 			Debug.WriteLineIf(
 				id != json?["data"]["SaveMediaListEntry"]["id"] || anime.Id != json["data"]["SaveMediaListEntry"]["mediaId"],
 				"The parameters returned don't match!", "AniList UpdateAnime WARNING");
@@ -307,7 +254,6 @@ namespace Trackr.Api {
 		}
 
 		public async Task<List<Anime>> PullAnimeList() {
-			if(_expiration <= DateTime.Now) await Authenticate();
 			var ret = new List<Anime>();
 			JsonValue json;
 
@@ -334,27 +280,18 @@ namespace Trackr.Api {
 			";
 			var pg = 1;
 			do {
-				var req = new JsonObject() {
-					["query"] = q,
-					["variables"] = new JsonObject() {
+				var v = new JsonObject() {
 						["pg"] = pg,
 						["per"] = 50,
 						["id"] = _userId
-					}
 				};
-				var response = await _client.PostAsync(UrlBase, new StringContent(req, Encoding.UTF8, ContentType));
-				json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
-				if(json == null) throw new ApiRequestException("Null JSON");
-				if(!response.IsSuccessStatusCode) {
-					Debug.WriteLine(json["errors"] ?? response.StatusCode.ToString(), "AniList AddAnime WARNING");
-					throw new ApiRequestException(json["errors"]?["message"] ?? response.StatusCode.ToString());
-				}
+				json = await SendRequest(q, v);
 
 				foreach(JsonObject x in json["data"]["Page"]["MediaList"]) {
 					var a = ToAnime(x["media"]);
 					a.ListStatus = ToListStatus(x["status"]);
-					a.UserScore = x["score"];
-					a.CurrentEpisode = x["progress"];
+					a.UserScore = x["score"] ?? 0;
+					a.CurrentEpisode = x["progress"] ?? 0;
 					a.Notes = x["notes"];
 					a.UserStart = ToDateTime(x["startedAt"]);
 					a.UserEnd = ToDateTime(x["completedAt"]);
@@ -378,8 +315,6 @@ namespace Trackr.Api {
 		}
 
 		public async Task<List<Manga>> FindManga(string keywords) {
-			if(_expiration <= DateTime.Now) await Authenticate();
-
 			const string q = @"
 				{
 					query($keywords: String, $page: Int, $per: Int){
@@ -413,21 +348,12 @@ namespace Trackr.Api {
 			var ret = new List<Manga>();
 			JsonValue json;
 			do {
-				var req = new JsonObject() {
-					["query"] = q,
-					["variables"] = new JsonObject() {
-						["keywords"] = keywords,
-						["page"] = page,
-						["per"] = 50
-					}
+				var v = new JsonObject() {
+					["keywords"] = keywords,
+					["page"] = page,
+					["per"] = 50
 				};
-				var response = await _client.PostAsync(UrlBase, new StringContent(req, Encoding.UTF8, ContentType));
-				json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
-				if(json == null) throw new ApiRequestException("Null JSON");
-				if(!response.IsSuccessStatusCode) {
-					Debug.WriteLine(json["errors"] ?? response.StatusCode.ToString(), "AniList Remove WARNING");
-					throw new ApiRequestException(json["errors"]?["message"] ?? response.StatusCode.ToString());
-				}
+				json = await SendRequest(q, v);
 				ret.AddRange(from m in (JsonArray)json["data"]["media"] select ToManga(m));
 				page++;
 			} while(json["data"]["Page"]["pageInfo"]["hasNextPage"] && page < 3);
@@ -435,8 +361,6 @@ namespace Trackr.Api {
 		}
 		
 		public async Task<bool> UpdateManga(Manga manga) {
-			if(_expiration <= DateTime.Now) await Authenticate();
-
 			var id = await GetEntryId(manga.Id);
 			if(id == -1) {
 				Debug.WriteLine("Manga not in database", "Manga update WARNING");
@@ -453,36 +377,74 @@ namespace Trackr.Api {
 					}
 				}			
 			";
-			
-			var req = new JsonObject() {
-				["query"] = q,
-				["variables"] = new JsonObject() {
-					["id"] = id,
-					["status"] = FromListStatus(manga.ListStatus),
-					["score"] = manga.UserScore,
-					["ch"] = manga.CurrentChapter,
-					["vol"] = manga.CurrentVolume,
-					["notes"] = manga.Notes,
-					["start"] = FromDateTime(manga.UserStart),
-					["end"] = FromDateTime(manga.UserEnd)
-				}
+
+			var v = new JsonObject() {
+				["id"] = id,
+				["status"] = FromListStatus(manga.ListStatus),
+				["score"] = manga.UserScore,
+				["ch"] = manga.CurrentChapter,
+				["vol"] = manga.CurrentVolume,
+				["notes"] = manga.Notes,
+				["start"] = FromDateTime(manga.UserStart),
+				["end"] = FromDateTime(manga.UserEnd)
 			};
 
-			var response = await _client.PostAsync(UrlBase, new StringContent(req, Encoding.UTF8, ContentType));
-			var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
-			if(json == null) throw new ApiRequestException("Null JSON");
-			if(!response.IsSuccessStatusCode) {
-				Debug.WriteLine(json?["errors"] ?? response.StatusCode.ToString(), "AniList UpdateAnime WARNING");
-				throw new ApiRequestException(json?["errors"]?["message"] ?? response.StatusCode.ToString());
-			}
+			var json = await SendRequest(q, v);
 			Debug.WriteLineIf(
 				id != json?["data"]["SaveMediaListEntry"]["id"] || manga.Id != json["data"]["SaveMediaListEntry"]["mediaId"],
 				"The parameters returned don't match!", "AniList UpdateManga WARNING");
 			return true;
 		}
 
-		public Task<List<Manga>> PullMangaList() {
-			throw new System.NotImplementedException();
+		public async Task<List<Manga>> PullMangaList() {
+			var ret = new List<Manga>();
+			JsonValue json;
+
+			const string q = @"
+				{
+					query($pg: Int, $per: Int, $id: Int) {
+						Page(page: $pg, perPage: $per) {
+							pageInfo {
+								hasNextPage
+							}
+
+							MediaList(userId: $id, type: MANGA) {
+								status
+								score(POINT_10)
+								progress
+								progressVolumes
+								notes
+								startedAt
+								completedAt
+								media
+							}
+						}
+					}
+				}
+			";
+			var pg = 1;
+			do {
+				var v = new JsonObject() {
+						["pg"] = pg,
+						["per"] = 50,
+						["id"] = _userId
+				};
+				json = await SendRequest(q, v);
+
+				foreach(JsonObject x in json["data"]["Page"]["MediaList"]) {
+					var m = ToManga(x["media"]);
+					m.ListStatus = ToListStatus(x["status"]);
+					m.UserScore = x["score"] ?? 0;
+					m.CurrentChapter = x["progress"] ?? 0;
+					m.CurrentVolume = x["progressVolumes"] ?? 0;
+					m.Notes = x["notes"];
+					m.UserStart = ToDateTime(x["startedAt"]);
+					m.UserEnd = ToDateTime(x["completedat"]);
+					ret.Add(m);
+				}
+				pg++;
+			} while(json["data"]["Page"]["pageInfo"]["hasNextPage"]);
+			return ret;
 		}
 
 		private async Task<int> GetEntryId(int id) {
@@ -681,6 +643,29 @@ namespace Trackr.Api {
 					_clientSecret = json?["secret"];
 				}
 			}
+		}
+
+		private async Task<JsonValue> SendRequest(string query, JsonValue variables) {
+			Task auth = null;
+			if(_expiration <= DateTime.Now) auth = Authenticate();
+			
+			var req = new JsonObject() {
+				["query"] = query,
+				["variables"] = variables
+			};
+			if(auth != null) await auth;
+			var response = await _client.PostAsync(UrlBase, new StringContent(req, Encoding.UTF8, ContentType));
+			var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
+			if(json == null) throw new ApiRequestException("Null JSON value");
+			if(!response.IsSuccessStatusCode) {
+				Debug.WriteLine(json["errors"] ?? response.StatusCode.ToString(), "AniList WARNING");
+				throw new ApiRequestException(json["errors"]?["message"] ?? response.StatusCode.ToString());
+			}
+			return json;
+		}
+
+		~AniList() {
+			_client.Dispose();
 		}
 	}
 }

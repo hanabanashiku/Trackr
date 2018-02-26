@@ -9,17 +9,20 @@ namespace Trackr.Test {
 	[TestFixture]
 	public class AniListTest {
 		private AniList _aniList; // cupuvit@send22u.info trackrtest2 MWhXDyAUQdxa
+		private const string Username = "trackrtest2";
 		
 		[OneTimeSetUp]
 		public async Task SetUp() {
 			Program.UserSettings = Settings.Load();
-			var pin = // get this pin by going to https://anilist.co/api/v2/oauth/authorize?client_id=289&response_type=code
-				"";
-			var cred = new UserPass(null, pin);
 			
-			_aniList = new AniList(cred);
+			// Make sure there is an account called trackr2@anilist in settings file
+			var act = Program.UserSettings.Accounts.FirstOrDefault(x => x.Provider == "AniList" && x.Username == Username);
+			
+			Assert.AreNotEqual(act, null);
+			
+			_aniList = new AniList(act?.Credentials);
 			Assert.True(await _aniList.VerifyCredentials());
-			Assert.AreEqual(_aniList.Username, "trackrtest2"); // Run this with this account
+			Assert.AreEqual(_aniList.Username, Username); // Run this with this account
 		}
 		
 		[Test]

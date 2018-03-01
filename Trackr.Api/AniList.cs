@@ -26,8 +26,13 @@ namespace Trackr.Api {
 		/// <summary>
 		/// The username of the account signed in to AniList.
 		/// </summary>
-		public override string Username => _credentials.Username;
-		
+		public override string Username {
+			get {
+				if (_credentials.Username == null) FetchUsername().Wait();
+				return _credentials.Username;
+			}
+		}
+
 		private const string UrlBase = "https://graphql.anilist.co";
 		private const string OAuth = "https://anilist.co/api/v2/oauth/";
 		//private const string PinUrl = "https://anilist.co/api/v2/oauth/pin";
@@ -56,6 +61,10 @@ namespace Trackr.Api {
 		public static string RedirectUrl => OAuth + $"authorize?client_id={ClientId}&response_type=code";
 
 
+		/// <summary>
+		/// Instantiate AniList
+		/// </summary>
+		/// <param name="credentials">The credentials should contain authorization code if Username is null, or a refresh token otherwise.</param>
 		public AniList(UserPass credentials) {
 			_credentials = credentials;
 			_expiration = DateTime.Now;
@@ -63,11 +72,21 @@ namespace Trackr.Api {
 			_credentials.Username = null; // this is how we verify the credentials
 		}
 
+		// If username is null, password is an auth token
+		// Otherwise, it is a refresh token
 		private async Task<bool> Authenticate() {
+			string grantType, codeType;
+			if (_credentials.Username == null) {
+				grantType = "authorization_code";
+				codeType = "code";
+			}
+			else {
+				grantType = "refresh_token";
+				codeType = "refresh_token";
+			}
 			var data = new FormUrlEncodedContent(new [] {
-				new KeyValuePair<string, string>("grant_type", "authorization_code"),
-				new KeyValuePair<string, string>("code", _credentials.Password),
-				//new KeyValuePair<string, string>("redirect_uri", PinUrl),
+				new KeyValuePair<string, string>("grant_type", grantType),
+				new KeyValuePair<string, string>(codeType, _credentials.Password),
 				new KeyValuePair<string, string>("client_id", ClientId),
 				new KeyValuePair<string, string>("client_secret", ClientSecret),
 			});
@@ -77,7 +96,6 @@ namespace Trackr.Api {
 			if(response.StatusCode != HttpStatusCode.OK) throw new ApiRequestException(json?["message"].ToString() ?? response.StatusCode.ToString());
 			if(json?["access_token"] == null) throw new ApiRequestException("Null response");
 			_client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(json["token_type"], json["access_token"]);
-			//_client.DefaultRequestHeaders.Add("Authorization", "Bearer " + json["access_token"]);
 			_expiration = DateTime.Now.AddSeconds(json["expires_in"]);
 			_credentials.Password = json["refresh_token"]; // always use credentials.Password. This will be the refresh token or the auth code!!
 			return true;

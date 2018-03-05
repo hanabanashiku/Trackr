@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using Gdk;
 using Gtk;
@@ -22,6 +23,8 @@ namespace Trackr.Gui.Gtk {
 		private VBox _mangaBox, _searchBox;
 		internal Statusbar _statusbar;
 		
+		enum Page { Anime = 0, Manga = 1, NullAccount = 2, Search = 3 }
+		
 		public MainWindow() : base(Program.AppName) {
 			Icon = Program.AppIcon;
 			DefaultSize = new Size(700, 550);
@@ -34,6 +37,10 @@ namespace Trackr.Gui.Gtk {
 
 			DeleteEvent += OnDelete;
 			ShowAll();
+			
+			if(Program.AnimeList != null) _nb.CurrentPage = (int)Page.Anime;
+			else if (Program.MangaList != null) _nb.CurrentPage = (int) Page.Manga;
+			else _nb.CurrentPage = (int) Page.NullAccount;
 		}
 
 		private void Instantiate() {
@@ -116,7 +123,6 @@ namespace Trackr.Gui.Gtk {
 			_nb.Add(_mangaBox);
 			_nb.Add(_nullAccountBox);
 			_nb.Add(_searchBox);
-			_nb.CurrentPage = 0;
 
 			_animeBox.SettingsItem.Clicked += OnSettings;
 		}
@@ -133,17 +139,17 @@ namespace Trackr.Gui.Gtk {
 			switch((string)_sidebar.Model.GetValue(i, 1)) {
 				case "Anime":
 					// Switch to the null account page or the anime page
-					_nb.CurrentPage = Program.AnimeList == null ? 2 : 0;
+					_nb.CurrentPage = Program.AnimeList == null ? (int)Page.NullAccount : (int)Page.Anime;
 					break;
 				case "Manga":
 					// Switch to the null account page or the manga page
-					_nb.CurrentPage = (Program.MangaList == null) ? 2 : 1;
+					_nb.CurrentPage = (Program.MangaList == null) ? (int)Page.NullAccount : (int)Page.Manga;
 					break;
 				case "Search":
-					_nb.CurrentPage = 3;
+					_nb.CurrentPage = (int)Page.Search;
 					break;
 				default:
-					Console.WriteLine("Warning: Unknown page");
+					Debug.WriteLine("Warning: Unknown page");
 					break;
 			}
 		}

@@ -1,4 +1,4 @@
-﻿﻿using System;
+﻿﻿﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -11,8 +11,8 @@ using System.Net.Http.Headers;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
-
-using Trackr.Core;
+  using System.Web;
+  using Trackr.Core;
 
 namespace Trackr.Api {
 	[Serializable]
@@ -75,22 +75,24 @@ namespace Trackr.Api {
 		// If username is null, password is an auth token
 		// Otherwise, it is a refresh token
 		private async Task<bool> Authenticate() {
+			_client.DefaultRequestHeaders.Authorization = null;
+			
 			FormUrlEncodedContent data;
 			
 			// if we haven't gotten a username, we don't have a refresh code!
 			if (_credentials.Username == null)
 				data = new FormUrlEncodedContent(new [] {
 					new KeyValuePair<string, string>("grant_type", "authorization_code"),
-					new KeyValuePair<string, string>("code", _credentials.Password),
 					new KeyValuePair<string, string>("client_id", ClientId),
 					new KeyValuePair<string, string>("client_secret", ClientSecret),
+					new KeyValuePair<string, string>("code", _credentials.Password)
 				});
 			else {
 				data = new FormUrlEncodedContent(new [] {
 					new KeyValuePair<string, string>("grant_type", "refresh_token"),
-					new KeyValuePair<string, string>("refresh_token", _credentials.Password),
 					new KeyValuePair<string, string>("client_id", ClientId),
 					new KeyValuePair<string, string>("client_secret", ClientSecret),
+					new KeyValuePair<string, string>("refresh_token", _credentials.Password)
 				});
 			}
 			var response = await _client.PostAsync(OAuth + "token", data);
@@ -101,6 +103,7 @@ namespace Trackr.Api {
 			_client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(json["token_type"], json["access_token"]);
 			_expiration = DateTime.Now.AddSeconds(json["expires_in"]);
 			_credentials.Password = json["refresh_token"]; // always use credentials.Password. This will be the refresh token or the auth code!!
+			Console.WriteLine(_credentials.Password);
 			return true;
 		}
 

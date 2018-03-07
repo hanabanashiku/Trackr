@@ -66,13 +66,12 @@ namespace Trackr.List {
         /// Add an anime to the list and queue it for syncing.
         /// </summary>
         /// <param name="a">The anime to add.</param>
-        /// <remarks>This requires a reference to an object because MAL does not support fetching by ID number in any
-        /// concise way. Use Find() to retrieve.</remarks>
         public void Add(Anime a){
             if(a.ListStatus == ApiEntry.ListStatuses.NotInList)
                 a.ListStatus = ApiEntry.ListStatuses.Current; // Default value
             // ignore if it's already there.
             // through the magic of OOP, references get updated everywhere.
+            // the idea is that if the anime is in the list, we will be given that reference
             if(Contains(a)) return;
             if(!_queue.Contains(a))
                 _queue.Enqueue(a);
@@ -84,13 +83,17 @@ namespace Trackr.List {
 
             if(!_queue.Contains(a))
                 _queue.Enqueue(a);
-            _entries.RemoveAll(x => x.Id == a.Id);
+            _entries.Remove(this[a.Id]);
         }
 
+        /// <summary>
+        /// Send the changes to an anime to the server
+        /// </summary>
+        /// <param name="a">An anime reference from this list.</param>
         public void Update(Anime a){
             if(!Contains(a))
                 Add(a);
-            else if(!_queue.Contains(a))
+            if(!_queue.Contains(a))
                 _queue.Enqueue(a);
         }
 
@@ -99,53 +102,68 @@ namespace Trackr.List {
         /// </summary>
         /// <param name="keywords">The search terms to use</param>
         /// <returns>A list of all anime results.</returns>
-        /// <exception cref="ApiFormatException">if the request times out.</exception>
+        /// <exception cref="ApiRequestException">if the request times out.</exception>
+        /// <remarks>Some APIs have return count limits set</remarks>
         public async Task<List<Anime>> Find(string keywords){
             var result = await _client.FindAnime(keywords);
-            
-            // Get updated list data for everything we have in our list already
+
+            // replace search with list data where possible
             for(var i = 0; i < result.Count; i++) {
-                var a = _entries.FirstOrDefault(x => x.Id == result[i].Id);
+                var a = this[result[i].Id]; // from list
                 if(a != null) result[i] = a;
             }
-            
-            return result.Select(a => Contains(a) ? this[a.Id] : a).ToList();
+            return result;
         }
-
+        
         /// <summary>
         /// Sync tasks that are currently in the queue.
         /// </summary>
         /// <exception cref="ApiFormatException">if the request times out.</exception>
-        // TODO: Make this more efficient etc
+        /// <remarks>The SyncStart, SyncStop, and SyncError events send error message or success indicators!</remarks>
         public async Task<bool> Sync() {
-            SyncStart?.Invoke(this, EventArgs.Empty);
+            SyncStart?.Invoke(this, EventArgs.Empty); // We're syncing!
             try {
                 var remote = await _client.PullAnimeList();
-                // First we update from our sync queue.
-                while(_queue.Count != 0) {
-                    var a = _queue.Dequeue();
-                    // We want to add it and it's not already there
+
+                // Pull everything we aren't changing from the server
+                foreach(var a in remote.Except(_queue)) {
+                    if(!Contains(a)) _entries.Add(a); // it's not there, add it
+                    // check if the values are same. If not, we want to preserve the references
+                    // note: if user values are unchanged, server values will be unchanged too. Usually not an issue..
+                    else if(a != this[a.Id])
+                        this[a.Id].Replace(a);
+                }
+                
+                // Add everything from the server that's not already on the list.
+                _entries.AddRange(remote.Except(_entries));
+                
+                // For now we will prefer our app's version. 
+                // Collisions should be infrequent, and if there are, the values will likely be similar
+                // Possibly we could make use of UpdatedAt values from the server (but MAL doesn't have these..)
+                while(_queue.Count != 0) { // start server updating
+                    var a = _queue.Peek();
                     if(!remote.Contains(a) && a.ListStatus != ApiEntry.ListStatuses.NotInList) {
-                        if(await _client.AddAnime(a.Id, a.ListStatus) == false) {
-                            SyncStop?.Invoke(this, EventArgs.Empty);
+                        if(!await _client.AddAnime(a.Id, a.ListStatus)) {
+                            SyncError?.Invoke(this, new ErrorEventArgs(new Exception($"Adding anime {a.Title} on server failed!")));
                             return false;
                         }
-                            
                     }
-                    if(await _client.UpdateAnime(a) == false){ // calls RemoveAnime() implicitly if NotInList        
-                        SyncStop?.Invoke(this, EventArgs.Empty);
+
+                    // Always call update, even if we've added something
+                    // Note RemoveAnime() is being implicitly called when necessary
+                    if(!await _client.UpdateAnime(a)) { 
+                        SyncError?.Invoke(this, new ErrorEventArgs(new Exception($"Updating anime {a.Title} on server failed!")));
                         return false;
                     }
-                }
-                // Pull again after we have exhausted our sync queue
-                _entries = await _client.PullAnimeList();
-                SyncStop?.Invoke(this, EventArgs.Empty);
-                return true;
+                    _queue.Dequeue(); // if successful
+                } // end server updating
             }
             catch(Exception e) {
-                SyncError?.Invoke(this, new ErrorEventArgs(e));
+                SyncError?.Invoke(this, new ErrorEventArgs(e.InnerException ?? e)); // Error!
                 return false;
             }
+            SyncStop?.Invoke(this, EventArgs.Empty); // we're done!
+            return true;
         }
 
         /// <summary>
@@ -164,10 +182,10 @@ namespace Trackr.List {
         /// Get anime by ID
         /// </summary>
         /// <returns>The requested anime, or null if it doesn't exist.</returns>
-        public Anime this[int i]{
+        public Anime this[int id]{
             get {
                 try {
-                    return _entries.First(x => x.Id == i);
+                    return _entries.First(x => x.Id == id);
                 }
                 catch(Exception) {
                     return null;
@@ -182,9 +200,14 @@ namespace Trackr.List {
             get { return _entries.Where(x => x.ListStatus == i).ToList(); }
         }
 
-        public bool Contains(Anime a){
-            return _entries.Contains(a);
+        /// <param name="a">The anime to check for</param>
+        /// <returns>True if the list contains an anime with a matching ID.</returns>
+        public bool Contains(Anime a) {
+            return Contains(a.Id);
         }
+
+        /// <param name="id">The anime ID to check for</param>
+        /// <returns>True if the list contains an anime with a matching ID.</returns>
         public bool Contains(int id){
             return _entries.Exists(x => x.Id == id);
         }

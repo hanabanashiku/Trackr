@@ -37,26 +37,26 @@ namespace Trackr.Api {
         /// <summary>
         /// The day the series started airing.
         /// </summary>
-        public DateTime StartDate { get; }
+        public DateTime StartDate { get; private set; }
         /// <summary>
         /// The day the series finished airing.
         /// </summary>
-        public DateTime EndDate { get; }
+        public DateTime EndDate { get; private set; }
 
         /// <summary>
         /// The type of show
         /// </summary>
-        public ShowTypes Type { get; }
+        public ShowTypes Type { get; private set; }
 
         /// <summary>
         /// The running status of the show.
         /// </summary>
-        public RunningStatuses Status { get; }
+        public RunningStatuses Status { get; private set; }
 
         /// <summary>
         /// The number of episodes aired.
         /// </summary>
-        public int Episodes { get; }
+        public int Episodes { get; private set; }
 
         public Dictionary<int, DateTime> AirTimes;
 
@@ -91,6 +91,36 @@ namespace Trackr.Api {
             Synopsis = synopsis;
             ImageUrl = imageurl;
             Provider = provider;
+        }
+
+        /// <summary>
+        /// Copy a reference over to this one
+        /// </summary>
+        /// <param name="a">The anime to shallow copy</param>
+        /// <exception cref="ArgumentException">if the IDs or providers don't match</exception>
+        public void Replace(Anime a) {
+            if(a.Id != _id || a.Provider != Provider) throw new ArgumentException("The IDs and providers must be the same!");
+            
+            Title = a.Title;
+            JapaneseTitle = a.JapaneseTitle;
+            EnglishTitle = a.EnglishTitle;
+            Synonyms = a.Synonyms;
+            Episodes = a.Episodes;
+            AirTimes = a.AirTimes;
+            Score = a.Score;
+            StartDate = a.StartDate;
+            EndDate = a.EndDate;
+            Type = a.Type;
+            Status = a.Status;
+            Synopsis = a.Synopsis;
+            ImageUrl = a.ImageUrl;
+
+            ListStatus = a.ListStatus;
+            CurrentEpisode = a.CurrentEpisode;
+            Notes = a.Notes;
+            UserStart = a.UserStart;
+            UserEnd = a.UserEnd;
+            UserScore = a.UserScore;
         }
 
         /// <summary>

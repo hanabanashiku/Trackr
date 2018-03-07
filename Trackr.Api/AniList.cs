@@ -38,13 +38,13 @@ namespace Trackr.Api {
 		//private const string PinUrl = "https://anilist.co/api/v2/oauth/pin";
 		private static string _clientId;
 		private static string ClientId {
-			get { if(_clientId == null) GetClientInfo();
+			get { if(_clientId == null) GetClientInfo(); // pull json data
 				return _clientId;
 			}
 		}
 		private static string _clientSecret;
 		private static string ClientSecret {
-			get { if(_clientSecret == null) GetClientInfo();
+			get { if(_clientSecret == null) GetClientInfo(); // pull json data
 				return _clientSecret;
 			}
 		}
@@ -75,21 +75,24 @@ namespace Trackr.Api {
 		// If username is null, password is an auth token
 		// Otherwise, it is a refresh token
 		private async Task<bool> Authenticate() {
-			string grantType, codeType;
-			if (_credentials.Username == null) {
-				grantType = "authorization_code";
-				codeType = "code";
-			}
+			FormUrlEncodedContent data;
+			
+			// if we haven't gotten a username, we don't have a refresh code!
+			if (_credentials.Username == null)
+				data = new FormUrlEncodedContent(new [] {
+					new KeyValuePair<string, string>("grant_type", "authorization_code"),
+					new KeyValuePair<string, string>("code", _credentials.Password),
+					new KeyValuePair<string, string>("client_id", ClientId),
+					new KeyValuePair<string, string>("client_secret", ClientSecret),
+				});
 			else {
-				grantType = "refresh_token";
-				codeType = "refresh_token";
+				data = new FormUrlEncodedContent(new [] {
+					new KeyValuePair<string, string>("grant_type", "refresh_token"),
+					new KeyValuePair<string, string>("refresh_token", _credentials.Password),
+					new KeyValuePair<string, string>("client_id", ClientId),
+					new KeyValuePair<string, string>("client_secret", ClientSecret),
+				});
 			}
-			var data = new FormUrlEncodedContent(new [] {
-				new KeyValuePair<string, string>("grant_type", grantType),
-				new KeyValuePair<string, string>(codeType, _credentials.Password),
-				new KeyValuePair<string, string>("client_id", ClientId),
-				new KeyValuePair<string, string>("client_secret", ClientSecret),
-			});
 			var response = await _client.PostAsync(OAuth + "token", data);
 			Debug.WriteIf(!response.IsSuccessStatusCode, response.Content.ReadAsStringAsync().Result + $" ({response.StatusCode})", "AniList Token WARNING");
 			var json = (JsonObject)JsonValue.Parse(await response.Content.ReadAsStringAsync());

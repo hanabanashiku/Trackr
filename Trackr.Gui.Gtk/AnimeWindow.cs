@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading.Tasks;
 using Gtk;
 using Trackr.Api;
 using Trackr.List;
@@ -82,6 +83,7 @@ namespace Trackr.Gui.Gtk {
 			_removeItem.TooltipText = "Remove Title";
 			_toolbar.Add(_syncItem);
 			_syncItem.TooltipText = "Synchronize List With Server";
+			_syncItem.Clicked += async delegate { await Task.Run(() => Program.AnimeList.Sync()); };
 			_toolbar.Add(SettingsItem);
 			SettingsItem.TooltipText = "Change Application Settings";
 			//TODO anything other than this

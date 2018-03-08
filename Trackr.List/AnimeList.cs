@@ -15,16 +15,16 @@ namespace Trackr.List {
     [Serializable]
     public class AnimeList : IEnumerable<Anime> {
         [NonSerialized]
-        private readonly IAnime _client;
+        private IAnime _client;
         /// <summary>
         /// The client this list is using
         /// </summary>
-        public IAnime Client => _client;
+        //public IAnime Client => _client;
 
-        private List<Anime> _entries;
+        private readonly List<Anime> _entries;
         private readonly Queue<Anime> _queue; // these must be synced
-		public string Api => Client.Name;
-        public string Username => Client.Username; // the username of the api instance
+		public string Api => _client.Name;
+        public string Username => _client.Username; // the username of the api instance
 
         private readonly string _filePath;
 
@@ -53,9 +53,11 @@ namespace Trackr.List {
                 var fs = new FileStream(ResolveFilePath(client), FileMode.Open, FileAccess.Read, FileShare.Read);
                 var list = (AnimeList) f.Deserialize(fs);
                 fs.Close();
+                list._client = client;
+                Task.Run(() => list.Sync());
                 return list;
             }
-            catch(Exception) {
+            catch(FileNotFoundException) {
                 var list = new AnimeList(client);
                 list.Sync().Wait();
                 return list;

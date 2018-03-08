@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
+using System.Threading.Tasks;
 using Gdk;
 using Gtk;
 using Trackr.Api;
@@ -168,7 +169,9 @@ namespace Trackr.Gui.Gtk {
 
         private static void OnSyncError(object o, ErrorEventArgs args) {
             Win?._statusbar.Pop(1);
-            Win?._statusbar.Push(2, args.GetException().Message);
+            Win?._statusbar.Push(2, $"Error syncing: {args.GetException().Message}");
+            Task.Delay(3500).Wait();
+            Win?._statusbar.Pop(2);
         }
         
     }

@@ -128,7 +128,13 @@ namespace Trackr.Gui.Gtk {
 			if(a.Episodes == 0) { // we don't know how many episodes
 				if(a.AirTimes.Count > 0)
 					crp.Value = (int)(a.CurrentEpisode / (decimal)a.AirTimes.Keys.Max() * 100); // use the last known episode
-				else crp.Value = 75; // close enough
+				else if(a.StartDate != DateTime.MinValue) { // Estimate based on one episode per week
+					var elapsed = DateTime.Now - a.StartDate;
+					var val = a.CurrentEpisode / (elapsed.TotalDays / 7);
+					if(val >= 1) crp.Value = 75;
+					else crp.Value = (int)(val * 100);
+				}
+				else crp.Value = 75;
 			}
 			else crp.Value = (int)(a.CurrentEpisode / (decimal)a.Episodes * 100); // we know how many episodes!
 		}

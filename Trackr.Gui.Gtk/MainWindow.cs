@@ -85,6 +85,7 @@ namespace Trackr.Gui.Gtk {
 			
 			// Menubar
 			_fileMenu.Add(_sync);
+			_sync.Activated += OnSync;
 			_fileMenu.Add(_settings);
 			_settings.Activated += OnSettings;
 			_fileMenu.Add(_close);
@@ -124,7 +125,9 @@ namespace Trackr.Gui.Gtk {
 			_nb.Add(_nullAccountBox);
 			_nb.Add(_searchBox);
 
+			// toolbar buttons
 			_animeBox.SettingsItem.Clicked += OnSettings;
+			_animeBox.SyncItem.Clicked += OnSync;
 		}
 
 		internal void Fill() {
@@ -152,6 +155,10 @@ namespace Trackr.Gui.Gtk {
 					Debug.WriteLine("Warning: Unknown page");
 					break;
 			}
+		}
+
+		internal void OnSync(object o, EventArgs args) {
+			_animeBox.Sync();
 		}
 
 		internal void OnSettings(object o, EventArgs args) {

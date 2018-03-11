@@ -34,8 +34,10 @@ namespace Trackr.Gui.Gtk {
 			_episode = new TreeViewColumn() {
 				Title = "Episode",
 				Resizable = true,
+				Clickable = true,
 				SortColumnId = (int)TreeColumns.Episode
 			};
+			_episode.Clicked += EpisodeClicked;
 			_episode.PackStart(new CellRendererText(), true);
 			_episode.SetCellDataFunc(_episode.CellRenderers[0], RenderEpisode);
 			AppendColumn(_episode);
@@ -73,6 +75,7 @@ namespace Trackr.Gui.Gtk {
 				Clickable = true,
 				SortColumnId = (int)TreeColumns.Season
 			};
+			_season.Clicked += SeasonClicked;
 			_season.PackStart(new CellRendererText(), true);
 			_season.SetCellDataFunc(_season.CellRenderers[0], RenderSeason);
 			AppendColumn(_season);
@@ -111,6 +114,7 @@ namespace Trackr.Gui.Gtk {
 
 		private void TitleClicked(object o, EventArgs args) {
 			SetSortOrder(_title);
+			ResetIndicators();
 			_title.SortIndicator = true;
 			Store.SetSortFunc((int)TreeColumns.Title, CompareTitle);
 			Store.SetSortColumnId((int)TreeColumns.Title, _title.SortOrder);
@@ -119,6 +123,20 @@ namespace Trackr.Gui.Gtk {
 		private static void RenderEpisode(TreeViewColumn c, CellRenderer cell, TreeModel m, TreeIter i) {
 			var a = (Anime)m.GetValue(i, 0);
 			((CellRendererText)cell).Text = a.CurrentEpisode + "/" + a.Episodes;
+		}
+
+		private static int CompareEpisode(TreeModel m, TreeIter i, TreeIter j) {
+			var a = (Anime)m.GetValue(i, 0);
+			var b = (Anime)m.GetValue(j, 0);
+			return a.CurrentEpisode.CompareTo(b.CurrentEpisode);
+		}
+
+		private void EpisodeClicked(object o, EventArgs args) {
+			SetSortOrder(_episode);
+			ResetIndicators();
+			_episode.SortIndicator = true;
+			Store.SetSortFunc((int)TreeColumns.Episode, CompareEpisode);
+			Store.SetSortColumnId((int)TreeColumns.Episode, _episode.SortOrder);
 		}
 
 		private static void RenderProgress(TreeViewColumn c, CellRenderer cell, TreeModel m, TreeIter i) {
@@ -152,6 +170,7 @@ namespace Trackr.Gui.Gtk {
 		
 		private void ScoreClicked(object o, EventArgs args) {
 			SetSortOrder(_score);
+			ResetIndicators();
 			_score.SortIndicator = true;
 			Store.SetSortFunc((int)TreeColumns.Score, CompareScore);
 			Store.SetSortColumnId((int)TreeColumns.Score, _score.SortOrder);
@@ -172,13 +191,30 @@ namespace Trackr.Gui.Gtk {
 		
 		private void TypeClicked(object o, EventArgs args) {
 			SetSortOrder(_type);
+			ResetIndicators();
 			_type.SortIndicator = true;
 			Store.SetSortFunc((int)TreeColumns.Type, CompareType);
 			Store.SetSortColumnId((int)TreeColumns.Type, _type.SortOrder);
 		}
 
 		private static void RenderSeason(TreeViewColumn c, CellRenderer cell, TreeModel m, TreeIter i) {
-			//TODO RenderSeason, CompareSeason, SeasonClicked
+			var a = (Anime)m.GetValue(i, 0);
+			((CellRendererText)cell).Text = a.Season.ToString();
+		}
+
+		private static int CompareSeason(TreeModel m, TreeIter i, TreeIter j) {
+			var a = (Anime)m.GetValue(i, 0);
+			var b = (Anime)m.GetValue(j, 0);
+			if(a.StartDate == DateTime.MinValue) return -1;
+			return a.StartDate.CompareTo(b.StartDate);
+		}
+
+		private void SeasonClicked(object o, EventArgs args) {
+			SetSortOrder(_season);
+			ResetIndicators();
+			_season.SortIndicator = true;
+			Store.SetSortFunc((int)TreeColumns.Season, CompareSeason);
+			Store.SetSortColumnId((int)TreeColumns.Season, _season.SortOrder);
 		}
 
 		// Display countdown to episode release if the episode is not out yet.
@@ -206,6 +242,16 @@ namespace Trackr.Gui.Gtk {
 			if(c.SortIndicator)
 				c.SortOrder = c.SortOrder == SortType.Ascending ? SortType.Descending : SortType.Ascending;
 			else c.SortOrder = SortType.Ascending;
+		}
+
+		private void ResetIndicators() {
+			_title.SortIndicator = false;
+			_episode.SortIndicator = false;
+			_progress.SortIndicator = false;
+			_score.SortIndicator = false;
+			_type.SortIndicator = false;
+			_season.SortIndicator = false;
+			_next.SortIndicator = false;
 		}
 		
 		private bool FilterTree(TreeModel m, TreeIter i) {

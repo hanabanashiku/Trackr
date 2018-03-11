@@ -42,6 +42,11 @@ namespace Trackr.Api {
         /// The day the series finished airing.
         /// </summary>
         public DateTime EndDate { get; private set; }
+        
+        /// <summary>
+        /// The season this anime falls in
+        /// </summary>
+        public Season Season => new Season(this);
 
         /// <summary>
         /// The type of show

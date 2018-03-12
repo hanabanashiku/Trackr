@@ -98,6 +98,31 @@ namespace Trackr.Api {
             Provider = provider;
         }
 
+        // copy constructor
+        public Anime(Anime a) {
+            _id = a.Id;
+            Title = a.Title;
+            JapaneseTitle = a.JapaneseTitle;
+            EnglishTitle = a.EnglishTitle;
+            Synonyms = a.Synonyms;
+            Episodes = a.Episodes;
+            AirTimes = a.AirTimes;
+            Score = a.Score;
+            StartDate = a.StartDate;
+            EndDate = a.EndDate;
+            Type = a.Type;
+            Status = a.Status;
+            Synopsis = a.Synopsis;
+            ImageUrl = a.ImageUrl;
+            Provider = a.Provider;
+            CurrentEpisode = a.CurrentEpisode;
+            Notes = a.Notes;
+            _userScore = a._userScore;
+            UserEnd = a.UserEnd;
+            UserStart = a.UserStart;
+            ListStatus = a.ListStatus;
+        }
+
         /// <summary>
         /// Copy a reference over to this one
         /// </summary>

@@ -89,8 +89,21 @@ namespace Trackr.Gui.Gtk {
 			_next.PackStart(new CellRendererText(), true);
 			_next.SetCellDataFunc(_next.CellRenderers[0], RenderNextEpisode);
 			AppendColumn(_next);
+
+			RowActivated += OnRowActivated;
 		}
 
+		private void OnRowActivated(object o, RowActivatedArgs args) {
+			TreeIter i;
+			Store.GetIter(out i, args.Path);
+			
+			var d = new AnimeDialog((Anime)Store.GetValue(i, 0));
+			if(d.Run() == (int)ResponseType.Accept) {
+				// update
+			}
+			d.Destroy();
+		}
+		
 		private static void RenderTitle(TreeViewColumn c, CellRenderer cell, TreeModel m, TreeIter i) {
 			var a = (Anime)m.GetValue(i, 0);
 			switch(Program.Settings.TitleDisplay){

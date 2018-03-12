@@ -73,7 +73,22 @@ namespace Trackr.Gui.Gtk {
             // Reload the list - what if the changed the title type?
             Win.Fill();
         }
-        
+
+        /// <summary>
+        /// Select the correct title based on the user's settings
+        /// </summary>
+        /// <param name="e"></param>
+        /// <returns></returns>
+        public static string GetTitle(ApiEntry e) {
+            switch(Settings.TitleDisplay) {
+                    case Settings.TitleDisplays.English:
+                        return e.EnglishTitle;
+                    case Settings.TitleDisplays.Japanese:
+                        return e.JapaneseTitle;
+                    default:
+                        return e.Title;
+            }
+        }
 
         /// <summary>
         /// Return the correct anime list based on the default value.

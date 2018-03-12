@@ -1,5 +1,8 @@
 ﻿﻿using System;
 using System.Drawing;
+ using System.IO;
+ using System.Net.Http;
+ using System.Threading.Tasks;
 
 namespace Trackr.Api {
     /// <summary>
@@ -72,6 +75,7 @@ namespace Trackr.Api {
         /// </summary>
         public DateTime UserEnd { get; set; } = DateTime.MinValue;
 
+        protected int _userScore;
         /// <summary>
         /// The user's personal score of the title, from 0 to 10.
         /// </summary>
@@ -84,7 +88,12 @@ namespace Trackr.Api {
             }
         }
 
-        public Image Cover => Image.FromFile(ImageUrl);
-        protected int _userScore;
+        public async Task<Stream> GetCover() {
+            using(var http = new HttpClient()) {
+                var res = await http.GetAsync(ImageUrl);
+                if(!res.IsSuccessStatusCode) throw new ApiRequestException(res.StatusCode.ToString());
+                return await res.Content.ReadAsStreamAsync();
+            }
+        }
     }
 }

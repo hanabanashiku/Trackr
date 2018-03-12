@@ -57,6 +57,7 @@
     <Compile Include="Kitsu.cs" />
     <Compile Include="Manga.cs" />
     <Compile Include="MyAnimeList.cs" />
+    <Compile Include="Season.cs" />
     <None Include="AniList.old" />
   </ItemGroup>
   <ItemGroup>

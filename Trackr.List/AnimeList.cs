@@ -2,6 +2,7 @@
 using System.Collections;
 using System.IO;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Threading.Tasks;
@@ -15,16 +16,16 @@ namespace Trackr.List {
     [Serializable]
     public class AnimeList : IEnumerable<Anime> {
         [NonSerialized]
-        private readonly IAnime _client;
+        private IAnime _client;
         /// <summary>
         /// The client this list is using
         /// </summary>
-        public IAnime Client => _client;
+        //public IAnime Client => _client;
 
-        private List<Anime> _entries;
-        private readonly Queue<Anime> _queue; // these must be synced
-		public string Api => Client.Name;
-        public string Username => Client.Username; // the username of the api instance
+        private readonly List<Anime> _entries;
+        private readonly List<Anime> _queue; // these must be synced
+		public string Api => _client.Name;
+        public string Username => _client.Username; // the username of the api instance
 
         private readonly string _filePath;
 
@@ -37,7 +38,7 @@ namespace Trackr.List {
         /// </summary>
         private AnimeList(IAnime client){
             _entries = new List<Anime>();
-            _queue = new Queue<Anime>();
+            _queue = new List<Anime>();
             _client = client;
             _filePath = ResolveFilePath(client);
         }
@@ -53,9 +54,11 @@ namespace Trackr.List {
                 var fs = new FileStream(ResolveFilePath(client), FileMode.Open, FileAccess.Read, FileShare.Read);
                 var list = (AnimeList) f.Deserialize(fs);
                 fs.Close();
+                list._client = client;
+                Task.Run(() => list.Sync());
                 return list;
             }
-            catch(Exception) {
+            catch(FileNotFoundException) {
                 var list = new AnimeList(client);
                 list.Sync().Wait();
                 return list;
@@ -74,7 +77,7 @@ namespace Trackr.List {
             // the idea is that if the anime is in the list, we will be given that reference
             if(Contains(a)) return;
             if(!_queue.Contains(a))
-                _queue.Enqueue(a);
+                _queue.Add(a);
             _entries.Add(a);
         }
 
@@ -82,7 +85,7 @@ namespace Trackr.List {
             a.ListStatus = ApiEntry.ListStatuses.NotInList;
 
             if(!_queue.Contains(a))
-                _queue.Enqueue(a);
+                _queue.Add(a);
             _entries.Remove(this[a.Id]);
         }
 
@@ -94,7 +97,7 @@ namespace Trackr.List {
             if(!Contains(a))
                 Add(a);
             if(!_queue.Contains(a))
-                _queue.Enqueue(a);
+                _queue.Add(a);
         }
 
         /// <summary>
@@ -124,39 +127,64 @@ namespace Trackr.List {
             SyncStart?.Invoke(this, EventArgs.Empty); // We're syncing!
             try {
                 var remote = await _client.PullAnimeList();
+                
+                /*   CASES
+                    1. The anime is in remote, but not in list
+                        a. The anime is enqueued for deletion - delete from server
+                        b. The anime is not enqueued for deletion - it was added to the server; add it to the list
+                    2. The anime is in the list, but not in remote
+                        a. The anime is enqueued for addition - add it to the server
+                        b. The anime is not enqueued for addition - it was deleted; remove it from the list
+                    3. The anime is in the list, and in remote.
+                        a. The anime is enqueued for updating - update it on the server and keep our copy.
+                        b. The anime is not enqueued for updating - keep the server's copy; the values could have changed.
+                 */
+                
+                // First lets partition our lists.
+                var remoteUnique = remote.Except(_entries).ToList(); // remote - entries
+                var clientUnique = _entries.Except(remote).ToList(); // entries - remote
+                var common = _entries.Except(remoteUnique).Except(clientUnique).ToList(); // entries u remote
 
-                // Pull everything we aren't changing from the server
-                foreach(var a in remote.Except(_queue)) {
-                    if(!Contains(a)) _entries.Add(a); // it's not there, add it
-                    // check if the values are same. If not, we want to preserve the references
-                    // note: if user values are unchanged, server values will be unchanged too. Usually not an issue..
-                    else if(a != this[a.Id])
-                        this[a.Id].Replace(a);
+                // Case 1: unique to server
+                foreach(var a in remoteUnique) {
+                    if(!_queue.Contains(a))
+                        _entries.Add(a);
+                    else if(_queue.First(x => x.Id == a.Id).ListStatus == ApiEntry.ListStatuses.NotInList) {
+                        await _client.RemoveAnime(a.Id);
+                        _queue.Remove(a);
+                    }
                 }
-                
-                // Add everything from the server that's not already on the list.
-                _entries.AddRange(remote.Except(_entries));
-                
-                // For now we will prefer our app's version. 
-                // Collisions should be infrequent, and if there are, the values will likely be similar
-                // Possibly we could make use of UpdatedAt values from the server (but MAL doesn't have these..)
-                while(_queue.Count != 0) { // start server updating
-                    var a = _queue.Peek();
-                    if(!remote.Contains(a) && a.ListStatus != ApiEntry.ListStatuses.NotInList) {
-                        if(!await _client.AddAnime(a.Id, a.ListStatus)) {
-                            SyncError?.Invoke(this, new ErrorEventArgs(new Exception($"Adding anime {a.Title} on server failed!")));
-                            return false;
-                        }
-                    }
 
-                    // Always call update, even if we've added something
-                    // Note RemoveAnime() is being implicitly called when necessary
-                    if(!await _client.UpdateAnime(a)) { 
-                        SyncError?.Invoke(this, new ErrorEventArgs(new Exception($"Updating anime {a.Title} on server failed!")));
-                        return false;
+                // Case 2: unique to client
+                foreach(var a in clientUnique) {
+                    if(!_queue.Contains(a))
+                        _entries.Remove(a);
+                    else if(_queue.First(x => x.Id == a.Id).ListStatus != ApiEntry.ListStatuses.NotInList) {
+                        await _client.AddAnime(a.Id, a.ListStatus);
+                        await _client.UpdateAnime(a);
+                        _queue.Remove(a);
                     }
-                    _queue.Dequeue(); // if successful
-                } // end server updating
+                    else {
+                        _entries.Remove(a);
+                        _queue.Remove(a);
+                    }
+                }
+
+                // Case 3: common to both
+                foreach(var a in common) {
+                    if(!_queue.Contains(a)) {
+                        a.Replace(remote.First(x => x.Id == a.Id)); // take the server values
+                    }
+                    else if(_queue.First(x => x.Id == a.Id).ListStatus != ApiEntry.ListStatuses.NotInList) {
+                        await _client.UpdateAnime(a);
+                        _queue.Remove(a);
+                    }
+                }
+
+                if(_queue.Count != 0) { // Something may have gone wrong here
+                    Debug.WriteLine("Queue is not empty!");
+                    _queue.ForEach(x => Debug.WriteLine($"{x.Title}, {x.ListStatus}, {x.CurrentEpisode}"));
+                }
             }
             catch(Exception e) {
                 SyncError?.Invoke(this, new ErrorEventArgs(e.InnerException ?? e)); // Error!

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
+using System.Threading.Tasks;
 using Gdk;
 using Gtk;
 using Trackr.Api;
@@ -72,7 +73,22 @@ namespace Trackr.Gui.Gtk {
             // Reload the list - what if the changed the title type?
             Win.Fill();
         }
-        
+
+        /// <summary>
+        /// Select the correct title based on the user's settings
+        /// </summary>
+        /// <param name="e"></param>
+        /// <returns></returns>
+        public static string GetTitle(ApiEntry e) {
+            switch(Settings.TitleDisplay) {
+                    case Settings.TitleDisplays.English:
+                        return e.EnglishTitle;
+                    case Settings.TitleDisplays.Japanese:
+                        return e.JapaneseTitle;
+                    default:
+                        return e.Title;
+            }
+        }
 
         /// <summary>
         /// Return the correct anime list based on the default value.
@@ -168,7 +184,9 @@ namespace Trackr.Gui.Gtk {
 
         private static void OnSyncError(object o, ErrorEventArgs args) {
             Win?._statusbar.Pop(1);
-            Win?._statusbar.Push(2, args.GetException().Message);
+            Win?._statusbar.Push(2, $"Error syncing: {args.GetException().Message}");
+            Task.Delay(3500).Wait();
+            Win?._statusbar.Pop(2);
         }
         
     }

@@ -1,16 +1,20 @@
 ﻿using System;
+using System.Threading.Tasks;
 using Gtk;
 using Trackr.Api;
-using Trackr.List;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
 
 namespace Trackr.Gui.Gtk {
 	internal class AnimeWindow : VBox {
 		private Notebook _nb;
 		private AnimeTreeView _watchingTree, _completedTree, _holdTree, _plannedTree, _droppedTree;
 		private Toolbar _toolbar;
-		private ToolButton _infoItem, _editItem, _removeItem, _syncItem;
-		internal ToolButton SettingsItem;
+		private ToolButton _infoItem, _editItem, _removeItem;
+		internal ToolButton SettingsItem, SyncItem;
 		internal Entry FilterEntry; // note: This as written will mean that searches won't carry over through different tabs
+		private AnimeTreeView[] _views;
 
 		internal AnimeWindow() : base(false, 0) {
 			Instantiate();
@@ -27,13 +31,14 @@ namespace Trackr.Gui.Gtk {
 			_holdTree = new AnimeTreeView(this);
 			_plannedTree = new AnimeTreeView(this);
 			_droppedTree = new AnimeTreeView(this);
+			_views = new AnimeTreeView[] {null, _watchingTree, _completedTree, _holdTree, _droppedTree, _plannedTree};
 			
 			// Toolbar
 			_toolbar = new Toolbar();
 			_infoItem = new ToolButton(Stock.Info);
 			_editItem = new ToolButton(Stock.Edit);
 			_removeItem = new ToolButton(Stock.Remove);
-			_syncItem = new ToolButton(Stock.Refresh);
+			SyncItem = new ToolButton(Stock.Refresh);
 			SettingsItem = new ToolButton(Stock.Preferences);
 			FilterEntry = new Entry();
 
@@ -80,8 +85,8 @@ namespace Trackr.Gui.Gtk {
 			_editItem.TooltipText = "Edit Title Information";
 			_toolbar.Add(_removeItem);
 			_removeItem.TooltipText = "Remove Title";
-			_toolbar.Add(_syncItem);
-			_syncItem.TooltipText = "Synchronize List With Server";
+			_toolbar.Add(SyncItem);
+			SyncItem.TooltipText = "Synchronize List With Server";
 			_toolbar.Add(SettingsItem);
 			SettingsItem.TooltipText = "Change Application Settings";
 			//TODO anything other than this
@@ -116,6 +121,41 @@ namespace Trackr.Gui.Gtk {
 
 		private void OnFilterActivated(object o, EventArgs args) {
 			//TODO Switch to Search tab, move search results
+		}
+
+		public async void Sync() {
+			if(Program.AnimeList == null) return;
+
+			await Task.Run(() => Program.AnimeList.Sync());
+
+			for(var i = 1; i < _views.Length; i++) {
+				var store = _views[i].Store;
+				var entries = Program.AnimeList[(ApiEntry.ListStatuses)i];
+				var current = new List<Anime>();
+
+				entries.ForEach(x => Debug.WriteLine(x.Title));
+
+				// Remove everything from store thats not in the list
+				TreeIter iter;
+				store.GetIterFirst(out iter);
+				for(var j = 0; j < store.IterNChildren(); j++) { 
+					var a = (Anime)store.GetValue(iter, 0);
+					if(!entries.Contains(a))
+						store.Remove(ref iter);
+					else current.Add(a);
+					store.IterNext(ref iter);
+				}
+
+				// Add everything thats not in the store
+				foreach(var a in entries.Except(current))
+					store.AppendValues(a);
+			}
+
+		// refresh lists without having to click (values updated automatically - OOP magic)
+		for(var i = 1; i < _views.Length; i++) {
+				_views[i].Hide();
+				_views[i].Show();
+			}
 		}
 	}
 }

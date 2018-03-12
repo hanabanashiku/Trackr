@@ -42,6 +42,11 @@ namespace Trackr.Api {
         /// The day the series finished airing.
         /// </summary>
         public DateTime EndDate { get; private set; }
+        
+        /// <summary>
+        /// The season this anime falls in
+        /// </summary>
+        public Season Season => new Season(this);
 
         /// <summary>
         /// The type of show
@@ -91,6 +96,31 @@ namespace Trackr.Api {
             Synopsis = synopsis;
             ImageUrl = imageurl;
             Provider = provider;
+        }
+
+        // copy constructor
+        public Anime(Anime a) {
+            _id = a.Id;
+            Title = a.Title;
+            JapaneseTitle = a.JapaneseTitle;
+            EnglishTitle = a.EnglishTitle;
+            Synonyms = a.Synonyms;
+            Episodes = a.Episodes;
+            AirTimes = a.AirTimes;
+            Score = a.Score;
+            StartDate = a.StartDate;
+            EndDate = a.EndDate;
+            Type = a.Type;
+            Status = a.Status;
+            Synopsis = a.Synopsis;
+            ImageUrl = a.ImageUrl;
+            Provider = a.Provider;
+            CurrentEpisode = a.CurrentEpisode;
+            Notes = a.Notes;
+            _userScore = a._userScore;
+            UserEnd = a.UserEnd;
+            UserStart = a.UserStart;
+            ListStatus = a.ListStatus;
         }
 
         /// <summary>

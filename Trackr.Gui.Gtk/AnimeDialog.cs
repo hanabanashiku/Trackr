@@ -66,18 +66,23 @@ namespace Trackr.Gui.Gtk {
 			var adj = new Adjustment(_original.CurrentEpisode, 0, max, 1, 10, 0);
 			_episodeSpin = new SpinButton(adj, 1, 0);
 			
+			_scoreSpin = new SpinButton(new Adjustment(_original.UserScore, 0, 10, 1, 2, 0), 1, 0);
+			_notesEntry = new TextView {Buffer = {Text = _original.Notes}};
+			_statusBox = new ComboBox(new [] { "Not In List", "Currently Watching", "Completed", "On Hold", "Dropped", "Planned" }); // lines up with ListStatus enum
+			_statusBox.Active = (int)_original.ListStatus;
 			_deleteButton = new Button(new Image(Stock.Remove, IconSize.Button));
 			_okButton = new Button("OK");
 			_cancelButton = new Button("Cancel");
 		}
 
 		private void Build() {
-			
-			
+
+
 			// build the header
 			var header = new HBox(false, 5); // contains the top
 			var imagebox = new VBox(); // contains the picture
-			try { // get the image
+			try {
+				// get the image
 				var stream = _original.GetCover().Result;
 				var cover = new Pixbuf(stream, 113, 159);
 				imagebox.PackStart(new Image(cover), false, false, 0);
@@ -92,13 +97,13 @@ namespace Trackr.Gui.Gtk {
 			var titlefont = new Pango.FontDescription() {
 				Weight = Weight.Bold,
 				Size = (int)(14 * Pango.Scale.PangoScale),
-				
-			}; //TODO fix alignment issue
+
+			};
 			var title = new Label(Program.GetTitle(_original));
 			title.ModifyFont(titlefont);
 			titlebox.PackStart(title, true, false, 0);
 			var spinbox = new HBox(false, 0); // contains the episodes
-			spinbox.PackStart(new Label("Episode") { Justify = Justification.Right}, false, false, 20);
+			spinbox.PackStart(new Label("Episode") {Justify = Justification.Right}, false, false, 20);
 			spinbox.Add(_episodeSpin);
 			_episodeSpin.SetSizeRequest(50, 22);
 			_episodeSpin.ValueChanged += OnEpisodeChanged;
@@ -106,12 +111,13 @@ namespace Trackr.Gui.Gtk {
 			spinbox.PackEnd(new VBox(), true, true, 100); // push everything left
 			titlebox.Add(spinbox);
 			var labels = new[] {
+				// all the header title info goes here
 				$"Type: \t\t{Enum.GetName(typeof(Anime.ShowTypes), _original.Type)}",
 				$"Season: \t{_original.Season}",
 				$"Status: \t{Enum.GetName(typeof(Anime.RunningStatuses), _original.Status)}",
 				$"Score:\t\t{_original.Score}"
 			};
-			foreach (var s in labels) {
+			foreach(var s in labels) {
 				var hbox = new HBox(false, 10);
 				hbox.PackStart(new Label(s), false, false, 20);
 				hbox.PackEnd(new VBox(), true, true, 100);
@@ -119,11 +125,21 @@ namespace Trackr.Gui.Gtk {
 			}
 			header.Add(titlebox);
 			VBox.PackStart(header, false, false, 5);
-			
-			// List Values
-			var listbox = new VBox();
 
-			_nb.AppendPage(listbox, new Label("List"));
+			// List Values
+			var table = new Table(4, 9, false);
+			table.Attach(new Label("List Status"), 0, 1, 0, 1);
+			table.Attach(_statusBox, 2, 3, 0, 1);
+			table.Attach(new Label("Score"), 0, 1, 1, 2);
+			table.Attach(_scoreSpin, 2, 3, 1, 2);
+			table.Attach(new Label("Started At"), 0, 1, 2, 3);
+			table.Attach(new Label("Completed At"), 0, 1, 3, 4);
+			table.Attach(new Label("Notes"), 0, 1, 4, 5);
+			table.Attach(new ScrolledWindow() { new Viewport() {_notesEntry}}, 1, 3, 4, 6);
+			
+			var viewport = new Viewport { new HBox(false, 5) {table, new VBox(false, 150)} };
+			var sw = new ScrolledWindow() {viewport};
+			_nb.AppendPage(sw, new Label("List"));
 			
 			// Notebook
 			VBox.Add(_nb);

@@ -22,7 +22,7 @@ namespace Trackr.Gui.Gtk {
             }
         }
 
-        public bool Sensitive {
+        public new bool Sensitive {
             get => _calendarButton.Visible;
             set {
                 _calendarButton.Visible = value;
@@ -30,6 +30,9 @@ namespace Trackr.Gui.Gtk {
             }
         }
 
+        /// <summary>
+        /// Called when the value is changed
+        /// </summary>
         public EventHandler Changed;
 
         private Label _display;
@@ -46,13 +49,12 @@ namespace Trackr.Gui.Gtk {
         private void Build() {
             _display = new Label();
             var buf = Pixbuf.LoadFromResource("Trackr.Gui.Gtk.Resources.icons.calendar.png");
-            buf.Scale(buf, 0, 0, 18, 18, 0, 0, 1, 1, InterpType.Bilinear);
             _calendarButton = new Button(new Image(buf));
-            _calendarButton.SetSizeRequest(22, 22);
             _todayButton = new Button("Insert Today");
             
             PackStart(_display, false, false, 0);
-            Add(_calendarButton);
+            PackStart(_calendarButton, false, false, 5);
+            _calendarButton.SetSizeRequest(30, 30);
             Add(_todayButton);
             _calendarButton.Clicked += OnCalendarClick;
             _todayButton.Clicked += delegate { Value = DateTime.Today; };
@@ -66,16 +68,15 @@ namespace Trackr.Gui.Gtk {
         }
 
         private class CalendarDialog : Dialog {
-            private readonly Calendar _calendar;
             public DateTime Result;
 
             public CalendarDialog(){
-                _calendar = new Calendar();
+                var calendar = new Calendar();
                 var ok = new Button(Stock.Ok);
                 var cancel = new Button(Stock.Cancel);
                 
-                VBox.Add(_calendar);
-                _calendar.DaySelected += delegate { Result = _calendar.Date; };
+                VBox.Add(calendar);
+                calendar.DaySelected += delegate { Result = calendar.Date; };
                 
                 ActionArea.Add(ok);
                 ok.Clicked += delegate { Respond(ResponseType.Accept); };

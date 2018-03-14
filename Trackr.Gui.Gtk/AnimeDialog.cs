@@ -1,38 +1,37 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
 using Gdk;
 using Gtk;
 using Pango;
 using Trackr.Api;
 using Image = Gtk.Image;
-using Alignment = Gtk.Alignment;
 
 namespace Trackr.Gui.Gtk {
 	/// <summary>
-	/// 
+	/// A dialog for displaying an anime.
 	/// </summary>
+	/// <remarks>Returns Accept if creating a new anime, Apply if editing, Cancel otherwise.</remarks>
+	/// <remarks>If Result is NotInList, delete the anime.</remarks>
 	public class AnimeDialog : Dialog {
-		
+		// TODO process triggers in AnimeWindow
+		// TODO create EntryDialog and make this implement that (readability, save time)
 		/// <summary>
 		/// A copy of the given media with updated changes.
 		/// </summary>
 		public readonly Anime Result;
 		
 		private readonly Anime _original;
-		private bool _changed;
-
+		private bool _changed; // was anything modified?
+		private bool _create; // should we create a new entry?
+		
 		private Notebook _nb;
-		private VBox _infoBox, _editBox, _episodeBox, _characterBox;
+		//private VBox _infoBox, _editBox, _episodeBox, _characterBox;
+		private ScrolledWindow _listWindow;
 		private SpinButton _episodeSpin, _scoreSpin;
 		private ComboBox _statusBox;
 		private DatePicker _userStart, _userEnd;
 		private TextView _notesEntry; 
-		private Button _okButton, _cancelButton, _deleteButton;
+		private Button _okButton, _cancelButton, _addRemoveButton;
 		
 		/// <summary>
 		/// Dialog for showing anime data and editing list information
@@ -69,13 +68,21 @@ namespace Trackr.Gui.Gtk {
 			
 			_scoreSpin = new SpinButton(new Adjustment(_original.UserScore, 0, 10, 1, 2, 0), 1, 0);
 			_notesEntry = new TextView {Buffer = {Text = _original.Notes}};
-			_statusBox = new ComboBox(new [] { "Not In List", "Currently Watching", "Completed", "On Hold", "Dropped", "Planned" }); // lines up with ListStatus enum
+			_statusBox = new ComboBox(new [] { "Currently Watching", "Completed", "On Hold", "Dropped", "Planned" }); // lines up with ListStatus enum
 			_statusBox.Active = (int)_original.ListStatus;
 			_userStart = new DatePicker(_original.UserStart);
 			_userEnd = new DatePicker(_original.UserEnd);
-			_deleteButton = new Button(new Image(Stock.Remove, IconSize.Button));
 			_okButton = new Button("OK");
 			_cancelButton = new Button("Cancel");
+
+			if(_original.ListStatus == ApiEntry.ListStatuses.NotInList) {
+				_addRemoveButton = new Button(Stock.Add);
+				_addRemoveButton.Clicked += OnAdd;
+			}
+			else {
+				_addRemoveButton = new Button(Stock.Remove);
+				_addRemoveButton.Clicked += OnDelete;
+			}
 		}
 
 		private void Build() {
@@ -97,7 +104,7 @@ namespace Trackr.Gui.Gtk {
 				header.PackStart(imagebox, false, false, 0);
 			}
 			var titlebox = new VBox(); // contains the title 
-			var titlefont = new Pango.FontDescription() {
+			var titlefont = new FontDescription() {
 				Weight = Weight.Bold,
 				Size = (int)(14 * Pango.Scale.PangoScale),
 
@@ -133,48 +140,100 @@ namespace Trackr.Gui.Gtk {
 			var table = new Table(4, 9, false);
 			table.Attach(new Label("List Status"), 0, 1, 0, 1);
 			table.Attach(_statusBox, 2, 3, 0, 1);
+			_statusBox.Changed += OnStatusChanged;
 			table.Attach(new Label("Score"), 0, 1, 1, 2);
 			table.Attach(_scoreSpin, 2, 3, 1, 2);
+			_scoreSpin.Changed += OnScoreChnaged;
 			table.Attach(new Label("Started At"), 0, 1, 2, 3);
 			table.Attach(_userStart, 2, 4, 2, 3);
+			_userStart.Changed += OnStartDateChanged;
 			table.Attach(new Label("Completed At"), 0, 1, 3, 4);
 			table.Attach(_userEnd, 2, 4, 3, 4);
+			_userEnd.Changed += OnEndDateChanged;
 			table.Attach(new Label("Notes"), 0, 1, 4, 5);
 			table.Attach(new ScrolledWindow() { new Viewport() {_notesEntry}}, 1, 3, 4, 6);
+			_notesEntry.Buffer.Changed += OnNotesChanged;
 			
 			var viewport = new Viewport { new HBox(false, 5) {table }};
-			var sw = new ScrolledWindow() {viewport};
-			_nb.AppendPage(sw, new Label("List"));
+			_listWindow = new ScrolledWindow() {viewport};
+			if(_original.ListStatus == ApiEntry.ListStatuses.NotInList)
+				_nb.AppendPage(_listWindow, new Label("List"));
+			
 			
 			// Notebook
 			VBox.Add(_nb);
 			
 			// buttons
 			var buttonbox = new HBox(false, 5);
-			buttonbox.PackStart(_deleteButton, false, false, 0); // make the delete button 30x30
+			buttonbox.PackStart(_addRemoveButton, false, false, 0); // make the delete button 30x30
 			buttonbox.Add(_okButton);
 			buttonbox.Add(_cancelButton);
 			ActionArea.Add(buttonbox);
 			_okButton.GrabDefault();
-			_deleteButton.SetSizeRequest(30, 30);
+			_okButton.Clicked += OnOk;
+			_cancelButton.Clicked += OnCancel;
+			_addRemoveButton.SetSizeRequest(30, 30);
 			_okButton.SetSizeRequest(70, 30);
 			_cancelButton.SetSizeRequest(70, 30);
-			_deleteButton.Visible = _original.ListStatus != ApiEntry.ListStatuses.NotInList; // don't show the button if we cant delete
+			_addRemoveButton.Visible = _original.ListStatus != ApiEntry.ListStatuses.NotInList; // don't show the button if we cant delete
 		}
 
 		private void OnEpisodeChanged(object o, EventArgs args) {
 			var spin = (SpinButton) o;
-			Result.CurrentEpisode = (int)spin.Value;
+			Result.CurrentEpisode = spin.ValueAsInt;
 			_changed = true;
 		}
 
+		private void OnStatusChanged(object o, EventArgs args) {
+			// 0 is NotInList!
+			Result.ListStatus = (ApiEntry.ListStatuses)(_statusBox.Active + 1);
+			_changed = true;
+		}
+
+		private void OnScoreChnaged(object o, EventArgs args) {
+			Result.UserScore = _scoreSpin.ValueAsInt;
+			_changed = true;
+		}
+		
 		private void OnStartDateChanged(object o, EventArgs args) { // attach these
 			Result.UserStart = _userStart.Value;
+			_changed = true;
 		}
 
 
 		private void OnEndDateChanged(object o, EventArgs args) {
 			Result.UserEnd = _userEnd.Value;
+		}
+
+		private void OnNotesChanged(object o, EventArgs args) {
+			Result.Notes = _notesEntry.Buffer.Text;
+		}
+
+		private void OnOk(object o, EventArgs args) {
+			if(_create)
+				Respond(ResponseType.Accept);
+			else if(_changed)
+				Respond(ResponseType.Apply);
+			else Respond(ResponseType.Cancel);
+		}
+
+		private void OnCancel(object o, EventArgs args) {
+			Respond(ResponseType.Cancel);
+		}
+
+		private void OnAdd(object o, EventArgs args) {
+			_create = true;
+			_nb.AppendPage(_listWindow, new Label("List"));
+			_addRemoveButton.Visible = false;
+		}
+
+		private void OnDelete(object o, EventArgs args) {
+			var d = new MessageDialog(Program.Win, DialogFlags.DestroyWithParent, MessageType.Question, ButtonsType.YesNo, "Delete the selected anime?");
+			if(d.Run() == (int)ResponseType.Yes) {
+				Result.ListStatus = ApiEntry.ListStatuses.NotInList;
+				Respond(ResponseType.Apply);
+			}
+			d.Destroy();
 		}
 	}
 }

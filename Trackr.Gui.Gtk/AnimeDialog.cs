@@ -30,7 +30,8 @@ namespace Trackr.Gui.Gtk {
 		private VBox _infoBox, _editBox, _episodeBox, _characterBox;
 		private SpinButton _episodeSpin, _scoreSpin;
 		private ComboBox _statusBox;
-		private TextView _notesEntry; // deal with dates
+		private DatePicker _userStart, _userEnd;
+		private TextView _notesEntry; 
 		private Button _okButton, _cancelButton, _deleteButton;
 		
 		/// <summary>
@@ -70,6 +71,8 @@ namespace Trackr.Gui.Gtk {
 			_notesEntry = new TextView {Buffer = {Text = _original.Notes}};
 			_statusBox = new ComboBox(new [] { "Not In List", "Currently Watching", "Completed", "On Hold", "Dropped", "Planned" }); // lines up with ListStatus enum
 			_statusBox.Active = (int)_original.ListStatus;
+			_userStart = new DatePicker(_original.UserStart);
+			_userEnd = new DatePicker(_original.UserEnd);
 			_deleteButton = new Button(new Image(Stock.Remove, IconSize.Button));
 			_okButton = new Button("OK");
 			_cancelButton = new Button("Cancel");
@@ -133,11 +136,13 @@ namespace Trackr.Gui.Gtk {
 			table.Attach(new Label("Score"), 0, 1, 1, 2);
 			table.Attach(_scoreSpin, 2, 3, 1, 2);
 			table.Attach(new Label("Started At"), 0, 1, 2, 3);
+			table.Attach(_userStart, 2, 4, 2, 3);
 			table.Attach(new Label("Completed At"), 0, 1, 3, 4);
+			table.Attach(_userEnd, 2, 4, 3, 4);
 			table.Attach(new Label("Notes"), 0, 1, 4, 5);
 			table.Attach(new ScrolledWindow() { new Viewport() {_notesEntry}}, 1, 3, 4, 6);
 			
-			var viewport = new Viewport { new HBox(false, 5) {table, new VBox(false, 150)} };
+			var viewport = new Viewport { new HBox(false, 5) {table }};
 			var sw = new ScrolledWindow() {viewport};
 			_nb.AppendPage(sw, new Label("List"));
 			
@@ -161,6 +166,15 @@ namespace Trackr.Gui.Gtk {
 			var spin = (SpinButton) o;
 			Result.CurrentEpisode = (int)spin.Value;
 			_changed = true;
+		}
+
+		private void OnStartDateChanged(object o, EventArgs args) { // attach these
+			Result.UserStart = _userStart.Value;
+		}
+
+
+		private void OnEndDateChanged(object o, EventArgs args) {
+			Result.UserEnd = _userEnd.Value;
 		}
 	}
 }

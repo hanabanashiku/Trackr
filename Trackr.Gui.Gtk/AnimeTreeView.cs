@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Linq;
 using Gtk;
 using Trackr.Api;
@@ -96,12 +97,52 @@ namespace Trackr.Gui.Gtk {
 		private void OnRowActivated(object o, RowActivatedArgs args) {
 			TreeIter i;
 			Store.GetIter(out i, args.Path);
-			
-			var d = new AnimeDialog((Anime)Store.GetValue(i, 0));
-			if(d.Run() == (int)ResponseType.Accept) {
-				// update
-			}
+			var a = (Anime)Store.GetValue(i, 0);
+			var d = new AnimeDialog(a);
+			var response = (ResponseType)d.Run();
+			var result = d.Result;
 			d.Destroy();
+
+			switch(response) {
+				// We activated a row from the list! No way we could be adding it!
+				case ResponseType.Accept:
+					Debug.WriteLine("Adding an anime that already exists!");
+					break;
+					
+				// We're changing values!
+				case ResponseType.Apply:
+					// Deleteing from list...
+					if(result.ListStatus == ApiEntry.ListStatuses.NotInList) {
+						Program.AnimeList.Remove(a);
+						Store.Remove(ref i);
+						return;
+					}
+					// moving on
+					a.Replace(result); // Update values, maintain references
+					if(a.ListStatus != result.ListStatus) {
+						Store.Remove(ref i);
+						switch(result.ListStatus) {
+							case ApiEntry.ListStatuses.Completed:
+								Program.Win.AnimeBox.CompletedTree.Store.AppendValues(result);
+								break;
+							case ApiEntry.ListStatuses.Current:
+								Program.Win.AnimeBox.WatchingTree.Store.AppendValues(result);
+								break;
+							case ApiEntry.ListStatuses.Dropped:
+								Program.Win.AnimeBox.DroppedTree.Store.AppendValues(result);
+								break;
+							case ApiEntry.ListStatuses.OnHold:
+								Program.Win.AnimeBox.HoldTree.Store.AppendValues(result);
+								break;
+							case ApiEntry.ListStatuses.Planned:
+								Program.Win.AnimeBox.PlannedTree.Store.AppendValues(result);
+								break;
+						}
+					}
+					Program.AnimeList.Update(a);
+					return;
+				default: return;
+			}
 		}
 		
 		private static void RenderTitle(TreeViewColumn c, CellRenderer cell, TreeModel m, TreeIter i) {

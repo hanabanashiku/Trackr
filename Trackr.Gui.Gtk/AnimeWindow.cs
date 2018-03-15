@@ -9,7 +9,7 @@ using System.Linq;
 namespace Trackr.Gui.Gtk {
 	internal class AnimeWindow : VBox {
 		private Notebook _nb;
-		private AnimeTreeView _watchingTree, _completedTree, _holdTree, _plannedTree, _droppedTree;
+		internal AnimeTreeView WatchingTree, CompletedTree, HoldTree, PlannedTree, DroppedTree;
 		private Toolbar _toolbar;
 		private ToolButton _infoItem, _editItem, _removeItem;
 		internal ToolButton SettingsItem, SyncItem;
@@ -26,12 +26,12 @@ namespace Trackr.Gui.Gtk {
 			_nb = new Notebook();
 			
 			// Trees
-			_watchingTree = new AnimeTreeView(this);
-			_completedTree = new AnimeTreeView(this);
-			_holdTree = new AnimeTreeView(this);
-			_plannedTree = new AnimeTreeView(this);
-			_droppedTree = new AnimeTreeView(this);
-			_views = new AnimeTreeView[] {null, _watchingTree, _completedTree, _holdTree, _droppedTree, _plannedTree};
+			WatchingTree = new AnimeTreeView(this);
+			CompletedTree = new AnimeTreeView(this);
+			HoldTree = new AnimeTreeView(this);
+			PlannedTree = new AnimeTreeView(this);
+			DroppedTree = new AnimeTreeView(this);
+			_views = new AnimeTreeView[] {null, WatchingTree, CompletedTree, HoldTree, DroppedTree, PlannedTree};
 			
 			// Toolbar
 			_toolbar = new Toolbar();
@@ -50,31 +50,31 @@ namespace Trackr.Gui.Gtk {
 			// Watching page
 			var sw = new ScrolledWindow();
 			sw.SetPolicy(PolicyType.Automatic, PolicyType.Automatic);
-			sw.Add(_watchingTree);
+			sw.Add(WatchingTree);
 			_nb.AppendPage(sw, new Label("Watching"));
 			
 			// Completed page
 			sw = new ScrolledWindow();
 			sw.SetPolicy(PolicyType.Automatic, PolicyType.Automatic);
-			sw.Add(_completedTree);
+			sw.Add(CompletedTree);
 			_nb.AppendPage(sw, new Label("Completed"));
 			
 			// Hold page
 			sw = new ScrolledWindow();
 			sw.SetPolicy(PolicyType.Automatic, PolicyType.Automatic);
-			sw.Add(_holdTree);
+			sw.Add(HoldTree);
 			_nb.AppendPage(sw, new Label("On Hold"));
 			
 			// Planned page
 			sw = new ScrolledWindow();
 			sw.SetPolicy(PolicyType.Automatic, PolicyType.Automatic);
-			sw.Add(_plannedTree);
+			sw.Add(PlannedTree);
 			_nb.AppendPage(sw, new Label("Planned"));
 			
 			// Dropped page
 			sw = new ScrolledWindow();
 			sw.SetPolicy(PolicyType.Automatic, PolicyType.Automatic);
-			sw.Add(_droppedTree);
+			sw.Add(DroppedTree);
 			_nb.AppendPage(sw, new Label("Dropped"));
 			
 			PackEnd(_toolbar, false, false, 0);
@@ -97,26 +97,26 @@ namespace Trackr.Gui.Gtk {
 		} // build
 
 		internal void Fill() {
-			_watchingTree.Store.Clear();
-			_completedTree.Store.Clear();
-			_droppedTree.Store.Clear();
-			_plannedTree.Store.Clear();
-			_holdTree.Store.Clear();
+			WatchingTree.Store.Clear();
+			CompletedTree.Store.Clear();
+			DroppedTree.Store.Clear();
+			PlannedTree.Store.Clear();
+			HoldTree.Store.Clear();
 			
 			if(Program.AnimeList == null) return;
-			Program.AnimeList[ApiEntry.ListStatuses.Current].ForEach(x => _watchingTree.Store.AppendValues(x));
-			Program.AnimeList[ApiEntry.ListStatuses.Completed].ForEach(x => _completedTree.Store.AppendValues(x));
-			Program.AnimeList[ApiEntry.ListStatuses.Dropped].ForEach(x => _droppedTree.Store.AppendValues(x));
-			Program.AnimeList[ApiEntry.ListStatuses.Planned].ForEach(x => _plannedTree.Store.AppendValues(x));
-			Program.AnimeList[ApiEntry.ListStatuses.OnHold].ForEach(x => _holdTree.Store.AppendValues(x));
+			Program.AnimeList[ApiEntry.ListStatuses.Current].ForEach(x => WatchingTree.Store.AppendValues(x));
+			Program.AnimeList[ApiEntry.ListStatuses.Completed].ForEach(x => CompletedTree.Store.AppendValues(x));
+			Program.AnimeList[ApiEntry.ListStatuses.Dropped].ForEach(x => DroppedTree.Store.AppendValues(x));
+			Program.AnimeList[ApiEntry.ListStatuses.Planned].ForEach(x => PlannedTree.Store.AppendValues(x));
+			Program.AnimeList[ApiEntry.ListStatuses.OnHold].ForEach(x => HoldTree.Store.AppendValues(x));
 		}
 
 		private void OnFilterChanged(object o, EventArgs args) {
-			_watchingTree.Filter.Refilter();
-			_completedTree.Filter.Refilter();
-			_holdTree.Filter.Refilter();
-			_plannedTree.Filter.Refilter();
-			_droppedTree.Filter.Refilter();
+			WatchingTree.Filter.Refilter();
+			CompletedTree.Filter.Refilter();
+			HoldTree.Filter.Refilter();
+			PlannedTree.Filter.Refilter();
+			DroppedTree.Filter.Refilter();
 		}
 
 		private void OnFilterActivated(object o, EventArgs args) {

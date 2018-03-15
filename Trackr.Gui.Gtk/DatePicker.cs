@@ -70,13 +70,19 @@ namespace Trackr.Gui.Gtk {
         private class CalendarDialog : Dialog {
             public DateTime Result;
 
-            public CalendarDialog(DateTime d){
+            public CalendarDialog(DateTime d) {
+                Title = "Choose a date";
+                TransientFor = Program.Win;
+                WindowPosition = WindowPosition.CenterOnParent;
+                
                 var calendar = new Calendar {Date = d};
+                Result = d;
                 var ok = new Button(Stock.Ok);
                 var cancel = new Button(Stock.Cancel);
                 
                 VBox.Add(calendar);
                 calendar.DaySelected += delegate { Result = calendar.Date; };
+                calendar.DaySelectedDoubleClick += delegate { Respond(ResponseType.Accept); };
                 
                 ActionArea.Add(ok);
                 ok.Clicked += delegate { Respond(ResponseType.Accept); };

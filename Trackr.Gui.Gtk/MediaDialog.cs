@@ -12,6 +12,8 @@ namespace Trackr.Gui.Gtk {
 	/// A dialog for displaying a media entry.
 	/// </summary>
 	/// <typeparam name="T">The type of media</typeparam>
+	/// <remarks>Returns Accept on creation of media, Apply on updating of media, Cancel otherwise.
+	/// 		 If Apply is sent and the status is ListStatus.NotInList, delete it.</remarks>
 	public abstract class MediaDialog<T> : Dialog where T : ApiEntry{
 		/// <summary>
 		/// A copy of the media with updated changes.
@@ -113,7 +115,7 @@ namespace Trackr.Gui.Gtk {
 			databox.Add(HeaderTable);
 			
 			// compile it all together
-			h.PackEnd(databox);
+			h.PackEnd(databox, true, true, 0);
 			return h;
 		}
 

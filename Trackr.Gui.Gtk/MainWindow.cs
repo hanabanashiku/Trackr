@@ -18,7 +18,7 @@ namespace Trackr.Gui.Gtk {
 		private TreeViewColumn _column;
 		private TreeStore _store;
 		private Notebook _nb;
-		private AnimeWindow _animeBox;
+		internal AnimeWindow AnimeBox;
 		private NullAccountWindow _nullAccountBox;
 		private VBox _mangaBox, _searchBox;
 		internal Statusbar _statusbar;
@@ -69,7 +69,7 @@ namespace Trackr.Gui.Gtk {
 			
 			// Notebook
 			_nb = new Notebook();
-			_animeBox = new AnimeWindow();
+			AnimeBox = new AnimeWindow();
 			_mangaBox = new VBox();
 			_nullAccountBox = new NullAccountWindow();
 			_searchBox = new VBox();
@@ -120,18 +120,18 @@ namespace Trackr.Gui.Gtk {
 			// Notebook
 			_pane.Add2(_nb);
 			_nb.ShowTabs = false;
-			_nb.Add(_animeBox);
+			_nb.Add(AnimeBox);
 			_nb.Add(_mangaBox);
 			_nb.Add(_nullAccountBox);
 			_nb.Add(_searchBox);
 
 			// toolbar buttons
-			_animeBox.SettingsItem.Clicked += OnSettings;
-			_animeBox.SyncItem.Clicked += OnSync;
+			AnimeBox.SettingsItem.Clicked += OnSettings;
+			AnimeBox.SyncItem.Clicked += OnSync;
 		}
 
 		internal void Fill() {
-			_animeBox.Fill();
+			AnimeBox.Fill();
 			//_mangaBox.Fill();
 		}
 
@@ -158,7 +158,7 @@ namespace Trackr.Gui.Gtk {
 		}
 
 		internal void OnSync(object o, EventArgs args) {
-			_animeBox.Sync();
+			AnimeBox.Sync();
 		}
 
 		internal void OnSettings(object o, EventArgs args) {

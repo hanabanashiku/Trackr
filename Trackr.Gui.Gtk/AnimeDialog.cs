@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Globalization;
-using System.Security.Cryptography;
 using Gtk;
 
 using Trackr.Api;
@@ -40,12 +39,13 @@ namespace Trackr.Gui.Gtk {
 			// Pack header table
 			HeaderTable.NRows = 3;
 			HeaderTable.NColumns = 2;
-			HeaderTable.Attach(new Label("Type: "), 0, 1, 0, 1, AttachOptions.Shrink, AttachOptions.Fill, 0, 0);
-			HeaderTable.Attach(new Label(Enum.GetName(typeof(Anime.ShowTypes), Original.Type)), 1, 2, 0, 1, AttachOptions.Shrink, AttachOptions.Fill, 0, 0);
-			HeaderTable.Attach(new Label("Season: "), 0, 1, 1, 2, AttachOptions.Shrink, AttachOptions.Fill, 0, 0);
-			HeaderTable.Attach(new Label(Original.Season.ToString()), 1, 2, 1, 2, AttachOptions.Shrink, AttachOptions.Fill, 0, 0);
-			HeaderTable.Attach(new Label("Score"), 0, 1, 2, 3, AttachOptions.Shrink, AttachOptions.Fill, 0, 0);
-			HeaderTable.Attach(new Label(Original.Score.ToString(CultureInfo.InvariantCulture)), 1, 2, 2, 3, AttachOptions.Shrink, AttachOptions.Fill, 0, 0);
+			HeaderTable.Attach(new Label("Type: \t"), 0, 1, 0, 1, AttachOptions.Shrink, AttachOptions.Expand, 0, 0);
+			HeaderTable.Attach(new Label(Enum.GetName(typeof(Anime.ShowTypes), Original.Type)), 1, 2, 0, 1, AttachOptions.Shrink, AttachOptions.Expand, 0, 0);
+			HeaderTable.Attach(new Label("Season: \t\t"), 0, 1, 1, 2, AttachOptions.Shrink, AttachOptions.Expand, 0, 0);
+			HeaderTable.Attach(new Label(Original.Season.ToString()), 1, 2, 1, 2, AttachOptions.Shrink, AttachOptions.Expand, 0, 0);
+			HeaderTable.Attach(new Label("Score: \t"), 0, 1, 2, 3, AttachOptions.Shrink, AttachOptions.Expand, 0, 0);
+			HeaderTable.Attach(new Label(Original.Score.ToString(CultureInfo.InvariantCulture)), 1, 2, 2, 3, AttachOptions.Shrink, AttachOptions.Expand, 0, 0);
+			
 		}
 
 		private void BuildListWindow() {

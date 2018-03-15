@@ -49,6 +49,7 @@
     <Compile Include="AnimeWindow.cs" />
     <Compile Include="DatePicker.cs" />
     <Compile Include="MainWindow.cs" />
+    <Compile Include="MediaDialog.cs" />
     <Compile Include="NullAccountWindow.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

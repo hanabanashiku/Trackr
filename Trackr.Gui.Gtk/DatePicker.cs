@@ -61,7 +61,7 @@ namespace Trackr.Gui.Gtk {
         }
 
         private void OnCalendarClick(object o, EventArgs args) {
-            var d = new CalendarDialog();
+            var d = new CalendarDialog(_value == DateTime.MinValue ? DateTime.Today : _value);
             if (d.Run() == (int) ResponseType.Accept)
                Value = d.Result;
             d.Destroy();
@@ -70,8 +70,8 @@ namespace Trackr.Gui.Gtk {
         private class CalendarDialog : Dialog {
             public DateTime Result;
 
-            public CalendarDialog(){
-                var calendar = new Calendar();
+            public CalendarDialog(DateTime d){
+                var calendar = new Calendar {Date = d};
                 var ok = new Button(Stock.Ok);
                 var cancel = new Button(Stock.Cancel);
                 

@@ -29,10 +29,6 @@ namespace Trackr.List {
 
         private readonly string _filePath;
 
-        public event EventHandler SyncStart;
-        public event EventHandler SyncStop;
-        public event ErrorEventHandler SyncError;
-
         /// <summary>
         /// Instantiate the anime list
         /// </summary>
@@ -117,80 +113,72 @@ namespace Trackr.List {
             }
             return result;
         }
-        
+
         /// <summary>
         /// Sync tasks that are currently in the queue.
         /// </summary>
         /// <exception cref="ApiFormatException">if the request times out.</exception>
         /// <remarks>The SyncStart, SyncStop, and SyncError events send error message or success indicators!</remarks>
         public async Task<bool> Sync() {
-            SyncStart?.Invoke(this, EventArgs.Empty); // We're syncing!
-            try {
-                var remote = await _client.PullAnimeList();
-                
-                /*   CASES
-                    1. The anime is in remote, but not in list
-                        a. The anime is enqueued for deletion - delete from server
-                        b. The anime is not enqueued for deletion - it was added to the server; add it to the list
-                    2. The anime is in the list, but not in remote
-                        a. The anime is enqueued for addition - add it to the server
-                        b. The anime is not enqueued for addition - it was deleted; remove it from the list
-                    3. The anime is in the list, and in remote.
-                        a. The anime is enqueued for updating - update it on the server and keep our copy.
-                        b. The anime is not enqueued for updating - keep the server's copy; the values could have changed.
-                 */
-                
-                // First lets partition our lists.
-                var remoteUnique = remote.Except(_entries).ToList(); // remote - entries
-                var clientUnique = _entries.Except(remote).ToList(); // entries - remote
-                var common = _entries.Except(remoteUnique).Except(clientUnique).ToList(); // entries u remote
+            var remote = await _client.PullAnimeList();
+            /*   CASES
+                1. The anime is in remote, but not in list
+                    a. The anime is enqueued for deletion - delete from server
+                    b. The anime is not enqueued for deletion - it was added to the server; add it to the list
+                2. The anime is in the list, but not in remote
+                    a. The anime is enqueued for addition - add it to the server
+                    b. The anime is not enqueued for addition - it was deleted; remove it from the list
+                3. The anime is in the list, and in remote.
+                    a. The anime is enqueued for updating - update it on the server and keep our copy.
+                    b. The anime is not enqueued for updating - keep the server's copy; the values could have changed.
+             */
 
-                // Case 1: unique to server
-                foreach(var a in remoteUnique) {
-                    if(!_queue.Contains(a))
-                        _entries.Add(a);
-                    else if(_queue.First(x => x.Id == a.Id).ListStatus == ApiEntry.ListStatuses.NotInList) {
-                        await _client.RemoveAnime(a.Id);
-                        _queue.Remove(a);
-                    }
-                }
+            // First lets partition our lists.
+            var remoteUnique = remote.Except(_entries).ToList(); // remote - entries
+            var clientUnique = _entries.Except(remote).ToList(); // entries - remote
+            var common = _entries.Except(remoteUnique).Except(clientUnique).ToList(); // entries u remote
 
-                // Case 2: unique to client
-                foreach(var a in clientUnique) {
-                    if(!_queue.Contains(a))
-                        _entries.Remove(a);
-                    else if(_queue.First(x => x.Id == a.Id).ListStatus != ApiEntry.ListStatuses.NotInList) {
-                        await _client.AddAnime(a.Id, a.ListStatus);
-                        await _client.UpdateAnime(a);
-                        _queue.Remove(a);
-                    }
-                    else {
-                        _entries.Remove(a);
-                        _queue.Remove(a);
-                    }
-                }
-
-                // Case 3: common to both
-                foreach(var a in common) {
-                    if(!_queue.Contains(a)) {
-                        a.Replace(remote.First(x => x.Id == a.Id)); // take the server values
-                    }
-                    else if(_queue.First(x => x.Id == a.Id).ListStatus != ApiEntry.ListStatuses.NotInList) {
-                        await _client.UpdateAnime(a);
-                        _queue.Remove(a);
-                    }
-                }
-
-                if(_queue.Count != 0) { // Something may have gone wrong here
-                    Debug.WriteLine("Queue is not empty!");
-                    _queue.ForEach(x => Debug.WriteLine($"{x.Title}, {x.ListStatus}, {x.CurrentEpisode}"));
+            // Case 1: unique to server
+            foreach(var a in remoteUnique) {
+                if(!_queue.Contains(a))
+                    _entries.Add(a);
+                else if(_queue.First(x => x.Id == a.Id).ListStatus == ApiEntry.ListStatuses.NotInList) {
+                    await _client.RemoveAnime(a.Id);
+                    _queue.Remove(a);
                 }
             }
-            catch(Exception e) {
-                SyncError?.Invoke(this, new ErrorEventArgs(e.InnerException ?? e)); // Error!
-                return false;
+
+            // Case 2: unique to client
+            foreach(var a in clientUnique) {
+                if(!_queue.Contains(a))
+                    _entries.Remove(a);
+                else if(_queue.First(x => x.Id == a.Id).ListStatus != ApiEntry.ListStatuses.NotInList) {
+                    await _client.AddAnime(a.Id, a.ListStatus);
+                    await _client.UpdateAnime(a);
+                    _queue.Remove(a);
+                }
+                else {
+                    _entries.Remove(a);
+                    _queue.Remove(a);
+                }
             }
-            SyncStop?.Invoke(this, EventArgs.Empty); // we're done!
+
+            // Case 3: common to both
+            foreach(var a in common) {
+                if(!_queue.Contains(a)) {
+                    a.Replace(remote.First(x => x.Id == a.Id)); // take the server values
+                }
+                else if(_queue.First(x => x.Id == a.Id).ListStatus != ApiEntry.ListStatuses.NotInList) {
+                    await _client.UpdateAnime(a);
+                    _queue.Remove(a);
+                }
+            }
+
+            if(_queue.Count != 0) {
+                // Something may have gone wrong here
+                Debug.WriteLine("Queue is not empty!");
+                _queue.ForEach(x => Debug.WriteLine($"{x.Title}, {x.ListStatus}, {x.CurrentEpisode}"));
+            }
             return true;
         }
 

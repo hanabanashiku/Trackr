@@ -123,11 +123,9 @@ namespace Trackr.Gui.Gtk {
 			//TODO Switch to Search tab, move search results
 		}
 
-		public async void Sync() {
+		public void Sync() {
 			if(Program.AnimeList == null) return;
-
-			await Task.Run(() => Program.AnimeList.Sync());
-
+			
 			for(var i = 1; i < _views.Length; i++) {
 				var store = _views[i].Store;
 				var entries = Program.AnimeList[(ApiEntry.ListStatuses)i];

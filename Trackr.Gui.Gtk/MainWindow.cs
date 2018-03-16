@@ -1,7 +1,8 @@
 ﻿﻿using System;
 using System.Diagnostics;
 using System.IO;
-using Gdk;
+ using System.Threading.Tasks;
+ using Gdk;
 using Gtk;
 using Trackr.List;
 using Image = Gtk.Image;
@@ -21,7 +22,8 @@ namespace Trackr.Gui.Gtk {
 		internal AnimeWindow AnimeBox;
 		private NullAccountWindow _nullAccountBox;
 		private VBox _mangaBox, _searchBox;
-		internal Statusbar _statusbar;
+		internal Statusbar Statusbar;
+		internal Label StatusLabel;
 		
 		private enum Page { Anime = 0, Manga = 1, NullAccount = 2, Search = 3 }
 		
@@ -47,7 +49,8 @@ namespace Trackr.Gui.Gtk {
 			// Containers
 			_container = new VBox(false, 3);
 			_menu = new MenuBar();
-			_statusbar = new Statusbar();
+			StatusLabel = new Label();
+			Statusbar = new Statusbar() {StatusLabel};
 
 			// Menu bar
 			_fileMenu = new Menu();
@@ -80,7 +83,7 @@ namespace Trackr.Gui.Gtk {
 		private void Build() {
 			_container.PackStart(_menu, false, false, 0);
 			_container.Add(_pane);
-			_container.PackEnd(_statusbar, false, false, 0);
+			_container.PackEnd(Statusbar, false, false, 0);
 			Add(_container);
 			
 			// Menubar
@@ -157,8 +160,23 @@ namespace Trackr.Gui.Gtk {
 			}
 		}
 
-		internal void OnSync(object o, EventArgs args) {
-			AnimeBox.Sync();
+		internal async void OnSync(object o, EventArgs args) {
+			Statusbar.Push(1, "Syncing...");
+			try {
+				if(Program.AnimeList != null) {
+					await Task.Run(() => Program.AnimeList.Sync());
+					AnimeBox.Sync();
+				}
+			}
+			catch(Exception e) {
+				Statusbar.Pop(1);
+				Statusbar.Push(1, $"Error: {e.InnerException?.Message ?? e.Message}");
+				await Task.Delay(2000);
+			}
+			finally {
+				Statusbar.Pop(1);
+			}
+
 		}
 
 		internal void OnSettings(object o, EventArgs args) {

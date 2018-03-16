@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Gdk;
 using Gtk;
@@ -111,9 +112,6 @@ namespace Trackr.Gui.Gtk {
                     default:
                         return null;
                 }
-                list.SyncStart += OnSyncStart;
-                list.SyncStop += OnSyncStop;
-                list.SyncError += OnSyncError;
                 return list;
             }
             catch(Exception e) {
@@ -151,9 +149,6 @@ namespace Trackr.Gui.Gtk {
                     default:
                         return null;
                 }
-                list.SyncStart += OnSyncStart;
-                list.SyncStop += OnSyncStop;
-                list.SyncError += OnSyncError;
                 return list;
             }
             catch(Exception e) {
@@ -171,22 +166,6 @@ namespace Trackr.Gui.Gtk {
                 else md.Destroy();
                 return null;
             }
-        }
-
-        private static void OnSyncStart(object o, EventArgs args) {
-            Win?._statusbar.Pop(1);
-            Win?._statusbar.Push(1, "Syncing...");
-        }
-
-        private static void OnSyncStop(object o, EventArgs args) {
-            Win?._statusbar.Pop(1);
-        }
-
-        private static void OnSyncError(object o, ErrorEventArgs args) {
-            Win?._statusbar.Pop(1);
-            Win?._statusbar.Push(2, $"Error syncing: {args.GetException().Message}");
-            Task.Delay(3500).Wait();
-            Win?._statusbar.Pop(2);
         }
         
     }

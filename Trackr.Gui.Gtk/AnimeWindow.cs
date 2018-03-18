@@ -1,9 +1,7 @@
 ﻿using System;
-using System.Threading.Tasks;
 using Gtk;
 using Trackr.Api;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 
 namespace Trackr.Gui.Gtk {
@@ -14,7 +12,7 @@ namespace Trackr.Gui.Gtk {
 		private ToolButton _infoItem, _editItem, _removeItem;
 		internal ToolButton SettingsItem, SyncItem;
 		internal Entry FilterEntry; // note: This as written will mean that searches won't carry over through different tabs
-		private AnimeTreeView[] _views;
+		internal AnimeTreeView[] Views;
 
 		internal AnimeWindow() : base(false, 0) {
 			Instantiate();
@@ -31,7 +29,7 @@ namespace Trackr.Gui.Gtk {
 			HoldTree = new AnimeTreeView(this);
 			PlannedTree = new AnimeTreeView(this);
 			DroppedTree = new AnimeTreeView(this);
-			_views = new AnimeTreeView[] {null, WatchingTree, CompletedTree, HoldTree, DroppedTree, PlannedTree};
+			Views = new [] {null, WatchingTree, CompletedTree, HoldTree, DroppedTree, PlannedTree};
 			
 			// Toolbar
 			_toolbar = new Toolbar();
@@ -111,6 +109,7 @@ namespace Trackr.Gui.Gtk {
 			Program.AnimeList[ApiEntry.ListStatuses.OnHold].ForEach(x => HoldTree.Store.AppendValues(x));
 		}
 
+
 		private void OnFilterChanged(object o, EventArgs args) {
 			WatchingTree.Filter.Refilter();
 			CompletedTree.Filter.Refilter();
@@ -123,36 +122,40 @@ namespace Trackr.Gui.Gtk {
 			//TODO Switch to Search tab, move search results
 		}
 
-		public void Sync() {
+		// Sync the list with the store
+		internal void Sync() {
 			if(Program.AnimeList == null) return;
-			
-			for(var i = 1; i < _views.Length; i++) {
-				var store = _views[i].Store;
-				var entries = Program.AnimeList[(ApiEntry.ListStatuses)i];
-				var current = new List<Anime>();
 
-				entries.ForEach(x => Debug.WriteLine(x.Title));
+			var seen = new List<Anime>();
 
-				// Remove everything from store thats not in the list
-				TreeIter iter;
-				store.GetIterFirst(out iter);
-				for(var j = 0; j < store.IterNChildren(); j++) { 
-					var a = (Anime)store.GetValue(iter, 0);
-					if(!entries.Contains(a))
-						store.Remove(ref iter);
-					else current.Add(a);
-					store.IterNext(ref iter);
+			for(var n = 1; n < Views.Length; n++) {
+				var store = Views[n].Store;
+				TreeIter i;
+				store.GetIterFirst(out i);
+
+				for(var j = 0; j < store.IterNChildren(); j++){ // cycle over each ListStore, move everything to the correct place or remove it
+					var a = (Anime)store.GetValue(i, 0);
+					seen.Add(a);
+
+					// Shouldn't be here at all
+					if(a.ListStatus == ApiEntry.ListStatuses.NotInList) store.Remove(ref i);
+					// Different status, move it.
+					else if(a.ListStatus != (ApiEntry.ListStatuses)n) {
+						store.Remove(ref i);
+						Views[(int)a.ListStatus].Store.AppendValues(a);
+					}
+					store.IterNext(ref i);
 				}
-
-				// Add everything thats not in the store
-				foreach(var a in entries.Except(current))
-					store.AppendValues(a);
 			}
 
-		// refresh lists without having to click (values updated automatically - OOP magic)
-		for(var i = 1; i < _views.Length; i++) {
-				_views[i].Hide();
-				_views[i].Show();
+			// Add whatever we haven't seen yet.
+			foreach(var a in Program.AnimeList.Except(seen))
+				Views[(int)a.ListStatus].Store.AppendValues(a);
+
+			// refresh lists without having to click (values updated automatically - OOP magic)
+			for(var i = 1; i < Views.Length; i++) {
+				Views[i].Hide();
+				Views[i].Show();
 			}
 		}
 	}

@@ -97,12 +97,12 @@ namespace Trackr.Gui.Gtk {
 		private void OnRowActivated(object o, RowActivatedArgs args) {
 			TreeIter i;
 			Store.GetIter(out i, args.Path);
-			var a = (Anime)Store.GetValue(i, 0);
+			var a = (Anime)Store.GetValue(i, 0); // original
 			var d = new AnimeDialog(a);
 			var response = (ResponseType)d.Run();
-			var result = d.Result;
+			var result = d.Result; // new version
 			d.Destroy();
-
+			
 			switch(response) {
 				// We activated a row from the list! No way we could be adding it!
 				case ResponseType.Accept:
@@ -117,31 +117,26 @@ namespace Trackr.Gui.Gtk {
 						Store.Remove(ref i);
 						return;
 					}
-					// moving on
-					a.Replace(result); // Update values, maintain references
+					
+					// We have to move it to a different list!
 					if(a.ListStatus != result.ListStatus) {
+						a.Replace(result);
 						Store.Remove(ref i);
-						switch(result.ListStatus) {
-							case ApiEntry.ListStatuses.Completed:
-								Program.Win.AnimeBox.CompletedTree.Store.AppendValues(result);
-								break;
-							case ApiEntry.ListStatuses.Current:
-								Program.Win.AnimeBox.WatchingTree.Store.AppendValues(result);
-								break;
-							case ApiEntry.ListStatuses.Dropped:
-								Program.Win.AnimeBox.DroppedTree.Store.AppendValues(result);
-								break;
-							case ApiEntry.ListStatuses.OnHold:
-								Program.Win.AnimeBox.HoldTree.Store.AppendValues(result);
-								break;
-							case ApiEntry.ListStatuses.Planned:
-								Program.Win.AnimeBox.PlannedTree.Store.AppendValues(result);
-								break;
-						}
+						Program.Win.AnimeBox.Views[(int)a.ListStatus].Store.AppendValues(a);
 					}
+					// just update the values
+					else a.Replace(result);
+					
 					Program.AnimeList.Update(a);
-					return;
-				default: return;
+
+					for(var j = 1; j < Program.Win.AnimeBox.Views.Length; j++) {
+						var v = Program.Win.AnimeBox.Views[j];
+						v.Hide();
+						v.Show();
+					}
+					break;
+					
+				default: return; // We just want to cancel
 			}
 		}
 		
@@ -309,15 +304,15 @@ namespace Trackr.Gui.Gtk {
 		}
 		
 		private bool FilterTree(TreeModel m, TreeIter i) {
-			var filter = _parent.FilterEntry.Text;
+			var filter = _parent.FilterEntry.Text.ToLower();
 			if(filter == string.Empty) return true;
 			
 			var a = (Anime)m.GetValue(i, 0);
-			if(a.Title.Contains(filter)) return true;
-			if(a.EnglishTitle.Contains(filter)) return true;
+			if(a.Title.ToLower().Contains(filter)) return true;
+			if(a.EnglishTitle.ToLower().Contains(filter)) return true;
 			if(a.JapaneseTitle.Contains(filter)) return true;
-			if(a.Synopsis.Contains(filter)) return true;
-			if(a.Synonyms.ToList().Exists(x => x.Contains(filter))) return true;
+			if(a.Synopsis.ToLower().Contains(filter)) return true;
+			if(a.Synonyms.ToList().Exists(x => x.ToLower().Contains(filter))) return true;
 			return false;
 		}
 	}

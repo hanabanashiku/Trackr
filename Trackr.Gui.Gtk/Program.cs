@@ -1,8 +1,5 @@
 ﻿using System;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 using Gdk;
 using Gtk;
 using Trackr.Api;
@@ -98,7 +95,7 @@ namespace Trackr.Gui.Gtk {
         internal static AnimeList GetAnimeList() {
             var act = Settings.DefaultAnime;
             try {
-                AnimeList list = null;
+                AnimeList list;
                 switch(act?.Provider) {
                     case "MyAnimeList":
                         list = AnimeList.Load(new MyAnimeList(act.Credentials));
@@ -135,7 +132,7 @@ namespace Trackr.Gui.Gtk {
         internal static MangaList GetMangaList() {
             var act = Settings.DefaultManga;
             try {
-                MangaList list = null;
+                MangaList list;
                 switch(act?.Provider) {
                     case "MyAnimeList":
                         list = MangaList.Load(new MyAnimeList(act.Credentials));

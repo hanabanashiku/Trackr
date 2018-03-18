@@ -169,6 +169,7 @@ namespace Trackr.Gui.Gtk {
 				}
 			}
 			catch(Exception e) {
+				Debug.Write(e.StackTrace);
 				Statusbar.Pop(1);
 				Statusbar.Push(1, $"Error: {e.InnerException?.Message ?? e.Message}");
 				await Task.Delay(2000);

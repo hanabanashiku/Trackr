@@ -67,6 +67,7 @@ namespace Trackr.Gui.Gtk {
 			ListTable.Attach(new ScrolledWindow(){new Viewport(){_notesEntry}}, 1, 3, 4, 6);
 
 			// Events
+			StatusBox.Changed += OnStatusChanged;
 			_scoreSpin.Changed += OnScoreChanged;
 			_userStart.Changed += OnStartDateChanged;
 			_userEnd.Changed += OnEndDateChanged;

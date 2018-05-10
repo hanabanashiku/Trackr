@@ -21,11 +21,13 @@ namespace Trackr.Gui.Gtk {
 		private Notebook _nb;
 		internal AnimeWindow AnimeBox;
 		private NullAccountWindow _nullAccountBox;
-		private VBox _mangaBox, _searchBox;
+		private VBox _mangaBox, _defaultSearch;
+		private SearchWindow _animeSearch;
+		private SearchWindow _mangaSearch;
 		internal Statusbar Statusbar;
 		internal Label StatusLabel;
 		
-		private enum Page { Anime = 0, Manga = 1, NullAccount = 2, Search = 3 }
+		private enum Page { Anime = 0, Manga = 1, NullAccount = 2, DefaultSearch = 3, AnimeSearch = 4, MangaSearch = 5 }
 		
 		public MainWindow() : base(Program.AppName) {
 			Icon = Program.AppIcon;
@@ -75,8 +77,9 @@ namespace Trackr.Gui.Gtk {
 			AnimeBox = new AnimeWindow();
 			_mangaBox = new VBox();
 			_nullAccountBox = new NullAccountWindow();
-			_searchBox = new VBox();
-			
+			_defaultSearch = new VBox();
+			_animeSearch = new SearchWindow();
+			_mangaSearch = new SearchWindow();
 
 		}
 
@@ -116,17 +119,21 @@ namespace Trackr.Gui.Gtk {
 			_sidebar.AppendColumn(_column);
 			_sidebar.HeadersVisible = false;
 			//TODO find icons
-			_store.AppendValues(null, "Anime");
-			_store.AppendValues(null, "Manga");
-			_store.AppendValues(null, "Search");
-
+			_store.AppendValues(Pixbuf.LoadFromResource("Trackr.Gui.Gtk.Resources.icons.anime.png"), "Anime");
+			_store.AppendValues(Pixbuf.LoadFromResource("Trackr.Gui.Gtk.Resources.icons.manga.png"), "Manga");
+			var i = _store.AppendValues(Pixbuf.LoadFromResource("Trackr.Gui.Gtk.Resources.icons.find.png"), "Search");
+			_store.AppendValues(i, Pixbuf.LoadFromResource("Trackr.Gui.Gtk.Resources.icons.search.png"), "Anime "); // the extra space means search!
+			_store.AppendValues(i, Pixbuf.LoadFromResource("Trackr.Gui.Gtk.Resources.icons.search.png"), "Manga ");
+			
 			// Notebook
 			_pane.Add2(_nb);
 			_nb.ShowTabs = false;
 			_nb.Add(AnimeBox);
 			_nb.Add(_mangaBox);
 			_nb.Add(_nullAccountBox);
-			_nb.Add(_searchBox);
+			_nb.Add(_defaultSearch);
+			_nb.Add(_animeSearch);
+			_nb.Add(_mangaSearch);
 
 			// toolbar buttons
 			AnimeBox.SettingsItem.Clicked += OnSettings;
@@ -152,7 +159,13 @@ namespace Trackr.Gui.Gtk {
 					_nb.CurrentPage = (Program.MangaList == null) ? (int)Page.NullAccount : (int)Page.Manga;
 					break;
 				case "Search":
-					_nb.CurrentPage = (int)Page.Search;
+					_nb.CurrentPage = (int)Page.DefaultSearch;
+					break;
+				case "Anime ":
+					_nb.CurrentPage = (Program.AnimeList == null) ? (int)Page.NullAccount : (int)Page.AnimeSearch;
+					break;
+				case "Manga ":
+					_nb.CurrentPage = (Program.MangaList == null) ? (int)Page.NullAccount : (int)Page.MangaSearch;
 					break;
 				default:
 					Debug.WriteLine("Warning: Unknown page");

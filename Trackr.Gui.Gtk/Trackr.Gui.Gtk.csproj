@@ -79,5 +79,11 @@
   <ItemGroup>
     <EmbeddedResource Include="Resources\icons\calendar.png" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\icons\anime.png" />
+    <EmbeddedResource Include="Resources\icons\find.png" />
+    <EmbeddedResource Include="Resources\icons\manga.png" />
+    <EmbeddedResource Include="Resources\icons\search.png" />
+  </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
 </Project>

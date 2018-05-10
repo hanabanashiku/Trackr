@@ -7,7 +7,6 @@ namespace Trackr.Gui.Gtk {
 	internal class AnimeTreeView : MediaTreeView<Anime> {
 		internal enum TreeColumns {Title, Episode, Progress, Score, Type, Season, NextEp};
 
-		internal new readonly ListStore Store;
 		internal readonly TreeModelFilter Filter;
 		private readonly TreeViewColumn _title, _episode, _progress, _score, _type, _season, _next;
 		private readonly AnimeWindow _parent;

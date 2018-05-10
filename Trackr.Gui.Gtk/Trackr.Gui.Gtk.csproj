@@ -54,7 +54,7 @@
     <Compile Include="NullAccountWindow.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="SearchTreeView.cs" />
+    <Compile Include="AnimeSearchTreeView.cs" />
     <Compile Include="SearchWindow.cs" />
     <Compile Include="SettingsWindow.cs" />
     <Compile Include="Tray.cs" />

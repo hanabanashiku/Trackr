@@ -190,15 +190,35 @@ namespace Trackr.Gui.Gtk {
 		protected static int CompareStatus(TreeModel m, TreeIter i, TreeIter j) {
 			if(typeof(T) == typeof(Anime)) {
 				var a = (Anime)m.GetValue(i, 0);
-				var b = (Anime)m.GetValue(i, 0);
+				var b = (Anime)m.GetValue(j, 0);
 				return ((int)a.Status).CompareTo((int)b.Status);
 			}
 			if(typeof(T) == typeof(Manga)) {
 				var a = (Manga)m.GetValue(i, 0);
-				var b = (Manga)m.GetValue(i, 0);
+				var b = (Manga)m.GetValue(j, 0);
 				return ((int)a.Status).CompareTo((int)b.Status);
 			}
 			return 0;
+		}
+
+		protected static void RenderListStatus(TreeViewColumn c, CellRenderer cell, TreeModel m, TreeIter i) {
+			var crt = (CellRendererText)cell;
+			var a = (ApiEntry)m.GetValue(i, 0);
+			crt.Text = Enum.GetName(typeof(ApiEntry.ListStatuses), a.ListStatus);
+		}
+
+		protected static int CompareListStatus(TreeModel m, TreeIter i, TreeIter j) {
+			var a = (ApiEntry)m.GetValue(i, 0);
+			var b = (ApiEntry)m.GetValue(j, 0);
+			return ((int)a.ListStatus).CompareTo((int)b.ListStatus);
+		}
+
+		protected static void RenderGenre(TreeViewColumn c, CellRenderer cell, TreeModel m, TreeIter i) {
+			throw new NotImplementedException();
+		}
+		
+		protected static int CompareGenre(TreeModel m, TreeIter i, TreeIter j) {
+			throw new NotImplementedException();
 		}
 
 		// Display countdown to episode release if the episode is not out yet.

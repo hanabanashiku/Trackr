@@ -45,6 +45,7 @@
     <Compile Include="AccountsManager.cs" />
     <Compile Include="AniListLogin.cs" />
     <Compile Include="AnimeDialog.cs" />
+    <Compile Include="AnimeSearchWindow.cs" />
     <Compile Include="AnimeTreeView.cs" />
     <Compile Include="AnimeWindow.cs" />
     <Compile Include="DatePicker.cs" />

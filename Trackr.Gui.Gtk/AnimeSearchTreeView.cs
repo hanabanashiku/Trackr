@@ -13,14 +13,17 @@ namespace Trackr.Gui.Gtk {
 			Type,
 			Season,
 			Genre,
-			Status
+			Status,
+			ListStatus
 		};
 		
 		internal new readonly ListStore Store;
-		private readonly TreeViewColumn _title, _episodes, _score, _type, _season, _status, _genre;
+		private readonly TreeViewColumn _title, _episodes, _score, _type, _season, _status, _genre, _listStatus;
 
 		internal AnimeSearchTreeView() {
 			Store = new ListStore(typeof(Anime));
+			Store.SetSortFunc((int)TreeColumns.Title, CompareTitle);
+			Model = Store;
 			
 			// Create our columns
 			_title = new TreeViewColumn() {
@@ -89,7 +92,31 @@ namespace Trackr.Gui.Gtk {
 			_status.SetCellDataFunc(_status.CellRenderers[0], RenderStatus);
 			AppendColumn(_status);
 
+			_genre = new TreeViewColumn() {
+				Title = "Genre",
+				Resizable = true,
+				Clickable = true,
+				SortColumnId = (int)TreeColumns.Genre
+			};
+			_genre.Clicked += GenreClicked;
+			_genre.PackStart(new CellRendererText(), true);
+			//_genre.SetCellDataFunc(_genre.CellRenderers[0], RenderGenre);
+			AppendColumn(_genre);
+			
+			_listStatus = new TreeViewColumn() {
+				Title = "List Status",
+				Resizable = true,
+				Clickable = true,
+				SortColumnId = (int)TreeColumns.ListStatus
+			};
+			_listStatus.Clicked += ListStatusClicked;
+			_listStatus.PackStart(new CellRendererText(), true);
+			_listStatus.SetCellDataFunc(_listStatus.CellRenderers[0], RenderListStatus);
+			AppendColumn(_listStatus);
+			
 			RowActivated += OnAnimeRowActivated;
+
+			ShowAll();
 		}
 		
 		private void TitleClicked(object o, EventArgs args) {
@@ -137,6 +164,22 @@ namespace Trackr.Gui.Gtk {
 			_status.SortIndicator = true;
 			Store.SetSortFunc((int)TreeColumns.Status, CompareStatus);
 			Store.SetSortColumnId((int)TreeColumns.Status, _status.SortOrder);
+		}
+
+		private void GenreClicked(object o, EventArgs args) {
+			SetSortOrder(_genre);
+			ResetIndicators();
+			_genre.SortIndicator = true;
+			//Store.SetSortFunc((int)TreeColumns.Genre, CompareGenre);
+			Store.SetSortColumnId((int)TreeColumns.Genre, _genre.SortOrder);
+		}
+
+		private void ListStatusClicked(object o, EventArgs args) {
+			SetSortOrder(_listStatus);
+			ResetIndicators();
+			_listStatus.SortIndicator = true;
+			Store.SetSortFunc((int)TreeColumns.ListStatus, CompareListStatus);
+			Store.SetSortColumnId((int)TreeColumns.ListStatus, _listStatus.SortOrder);
 		}
 
 		private void ResetIndicators() {

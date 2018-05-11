@@ -78,7 +78,7 @@ namespace Trackr.Gui.Gtk {
 			_mangaBox = new VBox();
 			_nullAccountBox = new NullAccountWindow();
 			_defaultSearch = new VBox();
-			_animeSearch = new SearchWindow();
+			_animeSearch = new AnimeSearchWindow();
 			_mangaSearch = new SearchWindow();
 
 		}

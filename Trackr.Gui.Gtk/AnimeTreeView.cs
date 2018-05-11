@@ -131,7 +131,7 @@ namespace Trackr.Gui.Gtk {
 			Store.SetSortFunc((int)TreeColumns.Season, CompareSeason);
 			Store.SetSortColumnId((int)TreeColumns.Season, _season.SortOrder);
 		}
-
+		
 		// TODO CompareNextEpisode, NextEpisodeClicked
 
 		private void ResetIndicators() {

@@ -10,6 +10,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml;
 using Trackr.Core;
+// ReSharper disable PossibleNullReferenceException
 
 namespace Trackr.Api {
     /// <summary>
@@ -324,7 +325,7 @@ namespace Trackr.Api {
                 return new Anime(id, title, english, "Japanese Title", synonyms, episodes, new Dictionary<int, DateTime>(), score, type, status, start, end, synopsis,
                     url, "MyAnimeList");
             }
-            catch(NullReferenceException e) {
+            catch(NullReferenceException) {
                 throw new ApiFormatException("The node was missing a required value.");
             }
         }
@@ -334,22 +335,18 @@ namespace Trackr.Api {
             if(node.Name != "anime") throw new ApiFormatException("The node is not an anime node");
             if(!node.HasChildNodes) throw new ApiFormatException("The anime node has no information");
             try {
-                int id = int.Parse(node.SelectSingleNode(".//series_animedb_id//text()").Value);
-                string title = node.SelectSingleNode(".//series_title/text()").Value;
+                var id = int.Parse(node.SelectSingleNode(".//series_animedb_id//text()").Value);
+                var title = node.SelectSingleNode(".//series_title/text()").Value;
                 var synonymnode = node.SelectSingleNode(".//series_synonyms/text()");
                 var synonyms = synonymnode == null ? new string[0] : Regex.Split(synonymnode.Value, "; ");
                 var type = ResolveAnimeType(node.SelectSingleNode(".//series_type/text()").Value);
-                int episodes = int.Parse(node.SelectSingleNode(".//series_episodes/text()").Value);
+                var episodes = int.Parse(node.SelectSingleNode(".//series_episodes/text()").Value);
                 var status = ResolveAnimeRunningStatus(node.SelectSingleNode(".//series_status/text()").Value);
-                string startstring = node.SelectSingleNode(".//series_start/text()").Value;
-                string endstring = node.SelectSingleNode(".//series_end/text()").Value;
-                DateTime seriesStart = (startstring == DefaultDate)
-                    ? DateTime.MinValue
-                    : DateTime.ParseExact(startstring.Replace("00", "01"), DateFormat, CultureInfo.InvariantCulture);
-                DateTime seriesEnd = (endstring == DefaultDate)
-                    ? DateTime.MinValue
-                    : DateTime.ParseExact(endstring.Replace("00", "01"), DateFormat, CultureInfo.InvariantCulture);
-                string url = node.SelectSingleNode(".//series_image/text()").Value;
+                var startstring = node.SelectSingleNode(".//series_start/text()").Value;
+                var endstring = node.SelectSingleNode(".//series_end/text()").Value;
+                var seriesStart = ParseDateTime(startstring);
+                var seriesEnd = ParseDateTime(endstring);
+                var url = node.SelectSingleNode(".//series_image/text()").Value;
                 //var anilist = AniList.GetAniListAnimeEquiv(title, type, episodes).Result;
                 var result = new Anime(
                     id, title, "English title", "Japanese Title", synonyms, episodes, new Dictionary<int, DateTime>(), 0, type, status, seriesStart, seriesEnd,
@@ -360,12 +357,8 @@ namespace Trackr.Api {
                 // User information
                 startstring = node.SelectSingleNode(".//my_start_date/text()").Value;
                 endstring = node.SelectSingleNode(".//my_finish_date/text()").Value;
-                result.UserStart = (startstring == DefaultDate)
-                    ? DateTime.MinValue
-                    : DateTime.ParseExact(startstring, DateFormat, CultureInfo.InvariantCulture);
-                result.UserEnd = (endstring == DefaultDate)
-                    ? DateTime.MinValue
-                    : DateTime.ParseExact(endstring, DateFormat, CultureInfo.InvariantCulture);
+                result.UserStart = ParseDateTime(startstring);
+                result.UserEnd = ParseDateTime(endstring);
                 result.UserScore = int.Parse(node.SelectSingleNode(".//my_score/text()").Value);
                 result.ListStatus = ResolveListStatus(node.SelectSingleNode(".//my_status/text()").Value);
                 return result;
@@ -409,29 +402,25 @@ namespace Trackr.Api {
                 throw new ApiFormatException("The node received contained no information");
 
             try {
-                int id = int.Parse(node.SelectSingleNode(".//id/text()").Value);
-                string title = node.SelectSingleNode(".//title/text()").Value;
+                var id = int.Parse(node.SelectSingleNode(".//id/text()").Value);
+                var title = node.SelectSingleNode(".//title/text()").Value;
                 var englishnode = node.SelectSingleNode(".//english/text()");
-                string english = (englishnode == null) ? string.Empty : englishnode.Value;
+                var english = (englishnode == null) ? string.Empty : englishnode.Value;
                 var synonymnode = node.SelectSingleNode(".//synonyms/text()");
                 var synonyms = synonymnode == null ? new string[0] : Regex.Split(synonymnode.Value, "; ");
-                int chapters = int.Parse(node.SelectSingleNode(".//chapters/text()").Value);
-                int volumes = int.Parse(node.SelectSingleNode(".//volumes/text()").Value);
-                double score = double.Parse(node.SelectSingleNode(".//score/text()").Value);
-                Manga.MangaTypes type = ResolveMangaType(node.SelectSingleNode(".//type/text()").Value);
-                Manga.RunningStatuses status = ResolveMangaStatus(node.SelectSingleNode(".//status/text()").Value);
-                string startstring = node.SelectSingleNode(".//start_date/text()").Value;
-                string endstring = node.SelectSingleNode(".//end_date/text()").Value;
-                DateTime start = (startstring == DefaultDate)
-                    ? DateTime.MinValue
-                    : DateTime.ParseExact(startstring.Replace("00", "01"), DateFormat, CultureInfo.InvariantCulture);
-                DateTime end = (endstring == DefaultDate)
-                    ? DateTime.MinValue
-                    : DateTime.ParseExact(endstring.Replace("00", "01"), DateFormat, CultureInfo.InvariantCulture);
+                var chapters = int.Parse(node.SelectSingleNode(".//chapters/text()").Value);
+                var volumes = int.Parse(node.SelectSingleNode(".//volumes/text()").Value);
+                var score = double.Parse(node.SelectSingleNode(".//score/text()").Value);
+                var type = ResolveMangaType(node.SelectSingleNode(".//type/text()").Value);
+                var status = ResolveMangaStatus(node.SelectSingleNode(".//status/text()").Value);
+                var startstring = node.SelectSingleNode(".//start_date/text()").Value;
+                var endstring = node.SelectSingleNode(".//end_date/text()").Value;
+                var start = ParseDateTime(startstring);
+                var end = ParseDateTime(endstring);
                 var synopsisnode = node.SelectSingleNode(".//synopsis/text()");
-                string synopsis = (synopsisnode == null) ? string.Empty : synopsisnode.Value;
+                var synopsis = (synopsisnode == null) ? string.Empty : synopsisnode.Value;
                 var urlnode = node.SelectSingleNode(".//image/text()");
-                string url = (urlnode == null) ? string.Empty : urlnode.Value;
+                var url = (urlnode == null) ? string.Empty : urlnode.Value;
                 return new Manga(id, title, english, string.Empty, synonyms, chapters, volumes, score, type, status, start, end,
                     synopsis, url);
             }
@@ -447,35 +436,27 @@ namespace Trackr.Api {
                 throw new ApiFormatException("The node received contained no information");
 
             try {
-                int id = int.Parse(node.SelectSingleNode(".//series_mangadb_id/text()").Value);
-                string title = node.SelectSingleNode(".//series_title/text()").Value;
+                var id = int.Parse(node.SelectSingleNode(".//series_mangadb_id/text()").Value);
+                var title = node.SelectSingleNode(".//series_title/text()").Value;
                 var synonymnode = node.SelectSingleNode(".//series_synonyms/text()");
                 var synonyms = synonymnode == null ? new string[0] : Regex.Split(synonymnode.Value, "; ");
-                Manga.MangaTypes type = ResolveMangaType(node.SelectSingleNode(".//series_type/text()").Value);
-                int chapters = int.Parse(node.SelectSingleNode(".//series_chapters/text()").Value);
-                int volumes = int.Parse(node.SelectSingleNode(".//series_volumes/text()").Value);
-                Manga.RunningStatuses status = ResolveMangaStatus(node.SelectSingleNode(".//series_status/text()").Value);
-                string startstring = node.SelectSingleNode(".//series_start/text()").Value;
-                string endstring = node.SelectSingleNode(".//series_end/text()").Value;
-                DateTime start = (startstring == DefaultDate)
-                    ? DateTime.MinValue
-                    : DateTime.ParseExact(startstring.Replace("00", "01"), DateFormat, CultureInfo.InvariantCulture);
-                DateTime end = (endstring == DefaultDate)
-                    ? DateTime.MinValue
-                    : DateTime.ParseExact(endstring.Replace("00", "01"), DateFormat, CultureInfo.InvariantCulture);
-                string url = node.SelectSingleNode(".//series_image/text()").Value;
-                Manga result = new Manga(id, title, string.Empty, string.Empty, synonyms, chapters, volumes, 0.0, type, status, start,
+                var type = ResolveMangaType(node.SelectSingleNode(".//series_type/text()").Value);
+                var chapters = int.Parse(node.SelectSingleNode(".//series_chapters/text()").Value);
+                var volumes = int.Parse(node.SelectSingleNode(".//series_volumes/text()").Value);
+                var status = ResolveMangaStatus(node.SelectSingleNode(".//series_status/text()").Value);
+                var startstring = node.SelectSingleNode(".//series_start/text()").Value;
+                var endstring = node.SelectSingleNode(".//series_end/text()").Value;
+                var start = ParseDateTime(startstring);
+                var end = ParseDateTime(endstring);
+                var url = node.SelectSingleNode(".//series_image/text()")?.Value;
+                var result = new Manga(id, title, string.Empty, string.Empty, synonyms, chapters, volumes, 0.0, type, status, start,
                     end, string.Empty, url);
                 result.CurrentChapter = int.Parse(node.SelectSingleNode(".//my_read_chapters/text()").Value);
                 result.CurrentVolume = int.Parse(node.SelectSingleNode(".//my_read_volumes/text()").Value);
                 startstring = node.SelectSingleNode(".//my_start_date/text()").Value;
                 endstring = node.SelectSingleNode(".//my_finish_date/text()").Value;
-                result.UserStart = (startstring == DefaultDate)
-                    ? DateTime.MinValue
-                    : DateTime.ParseExact(startstring.Replace("00", "01"), DateFormat, CultureInfo.InvariantCulture);
-                result.UserEnd = (startstring == DefaultDate)
-                    ? DateTime.MinValue
-                    : DateTime.ParseExact(endstring.Replace("00", "01"), DateFormat, CultureInfo.InvariantCulture);
+                result.UserStart = ParseDateTime(startstring);
+                result.UserEnd = ParseDateTime(endstring);
                 result.UserScore = int.Parse(node.SelectSingleNode(".//my_score/text()").Value);
                 result.ListStatus = ResolveListStatus(node.SelectSingleNode(".//my_status/text()").Value);
                 return result;
@@ -526,6 +507,30 @@ namespace Trackr.Api {
                 default:
                     return ApiEntry.ListStatuses.Current;
             }
+        }
+
+        private static DateTime ParseDateTime(string date) {
+            DateTime dt;
+
+            try {
+                dt = DateTime.ParseExact(date, DateFormat, CultureInfo.InvariantCulture);
+            }
+            catch(FormatException) {
+                if(date == DefaultDate)
+                    dt = DateTime.MinValue;
+                else if(Regex.IsMatch(date, "[0-9]{4}-00-00")) {
+                    var r = Regex.Match(date, "([0-9]{4})-00-00");
+                    dt = new DateTime(int.Parse(r.Groups[1].Value), 1, 1);
+                }
+                else if(Regex.IsMatch(date, "[0-9]{4}-[0-9]{2}-00")) {
+                    var r = Regex.Match(date, "([0-9]{4})-([0-9]{2})-00");
+                    dt = new DateTime(int.Parse(r.Groups[1].Value), int.Parse(r.Groups[2].Value), 1);
+                }
+                else
+                    dt = DateTime.MinValue;
+            }
+
+            return dt;
         }
 
         ~MyAnimeList(){

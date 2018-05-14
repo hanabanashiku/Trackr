@@ -92,7 +92,7 @@ namespace Trackr.Gui.Gtk {
         /// Return the correct anime list based on the default value.
         /// </summary>
         /// <returns>The retrieved AnimeList</returns>
-        internal static AnimeList GetAnimeList() {
+        private static AnimeList GetAnimeList() {
             var act = Settings.DefaultAnime;
             try {
                 AnimeList list;
@@ -112,8 +112,9 @@ namespace Trackr.Gui.Gtk {
                 return list;
             }
             catch(Exception e) {
+                Debug.WriteLine(e.InnerException?.StackTrace ?? e.StackTrace);
                 var md = new MessageDialog(Win, DialogFlags.DestroyWithParent, MessageType.Error, ButtonsType.YesNo,
-                    "An error was encountered while loading the default anime list: \n" + e.Message +
+                    "An error was encountered while loading the default anime list: \n" + (e.InnerException?.Message ?? e.Message) +
                     "\n Open the settings window?") { WindowPosition = WindowPosition.Center};
                 if(md.Run() == (int)ResponseType.Yes) {
                     md.Destroy();
@@ -129,7 +130,7 @@ namespace Trackr.Gui.Gtk {
 
         }
 
-        internal static MangaList GetMangaList() {
+        private static MangaList GetMangaList() {
             var act = Settings.DefaultManga;
             try {
                 MangaList list;
@@ -150,7 +151,7 @@ namespace Trackr.Gui.Gtk {
             }
             catch(Exception e) {
                 var md = new MessageDialog(Win, DialogFlags.DestroyWithParent, MessageType.Error, ButtonsType.YesNo,
-                    "An error was encountered while loading the default manga list: \n" + e.Message +
+                    "An error was encountered while loading the default manga list: \n" + (e.InnerException?.Message ?? e.Message) +
                     "\n Open the settings window?") { WindowPosition = WindowPosition.Center};
                 if(md.Run() == (int)ResponseType.Yes) {
                     md.Destroy();

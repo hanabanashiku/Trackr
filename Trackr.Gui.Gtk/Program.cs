@@ -68,7 +68,7 @@ namespace Trackr.Gui.Gtk {
             else if(Settings.DefaultManga.Provider != MangaList.Api || Settings.DefaultManga.Username != MangaList.Username)
                 MangaList = GetMangaList();
             
-            // Reload the list - what if the changed the title type?
+            // Reload the list - what if the user changed the title type?
             Win.Fill();
         }
 
@@ -78,13 +78,20 @@ namespace Trackr.Gui.Gtk {
         /// <param name="e"></param>
         /// <returns></returns>
         public static string GetTitle(ApiEntry e) {
-            switch(Settings.TitleDisplay) {
+            try {
+                switch(Settings.TitleDisplay) {
                     case Settings.TitleDisplays.English:
                         return e.EnglishTitle;
                     case Settings.TitleDisplays.Japanese:
                         return e.JapaneseTitle;
                     default:
                         return e.Title;
+                }
+            }
+            catch(NullReferenceException) {
+                if(e?.Title == null)
+                    throw;
+                return e.Title;
             }
         }
 

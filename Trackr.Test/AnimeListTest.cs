@@ -1,4 +1,7 @@
-﻿using NUnit.Framework;
+﻿using System.Linq;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using NUnit.Framework;
 using Trackr.Api;
 using Trackr.Core;
 using Trackr.List;
@@ -25,9 +28,9 @@ namespace Trackr.Test {
 		}
 
 		[TearDown]
-		public async void TearDown(){
+		public async Task TearDown(){
 			var pull = _mal.PullAnimeList().Result;
-			foreach(Anime a in pull)
+			foreach(var a in pull)
 				await _mal.RemoveAnime(a.Id);
 		}
 
@@ -45,6 +48,26 @@ namespace Trackr.Test {
 			Assert.True(_list.Sync().Result);
 			pull = _mal.PullAnimeList().Result;
 			Assert.False(pull.Contains(result[0]));
+		}
+		
+		[Test]
+		public void FindAnime(){
+			List<Anime> anime = _list.Find("Death Note").Result;
+			Assert.True(anime.Any(x => x.Id == 1535));
+			Assert.NotNull(anime.First(x => x.Id == 1535).Title);
+			Assert.True(anime.Any(x => x.Id == 2994));
+
+			anime = _mal.FindAnime("Pokémon").Result;
+			Assert.True(anime.Any(x => x.Id == 527));
+			Assert.True(anime.Any(x => x.Id == 2363));
+			Assert.True(anime.Any(x => x.Id == 20159));
+
+			anime = _mal.FindAnime("My Hero Academia").Result;
+			foreach(var a in anime) {
+				Assert.NotNull(a);
+				Assert.NotNull(a.Id);
+				Assert.NotNull(a.Title);
+			}
 		}
 
 		[Test]

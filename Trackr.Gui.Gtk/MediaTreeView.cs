@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
+using System.Threading.Tasks;
 using Gtk;
 
 using Trackr.Api;

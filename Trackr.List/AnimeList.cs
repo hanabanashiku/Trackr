@@ -106,11 +106,10 @@ namespace Trackr.List {
         public async Task<List<Anime>> Find(string keywords){
             var result = await _client.FindAnime(keywords);
 
-            // replace search with list data where possible
-            for(var i = 0; i < result.Count; i++) {
-                var a = this[result[i].Id]; // from list
-                if(a != null) result[i] = a;
-            }
+            // update references if we already have the data in our list
+            for(var i = 0; i < result.Count; i++)
+                if(Contains(result[i]))
+                    result[i] = this[result[i].Id];
             return result;
         }
 

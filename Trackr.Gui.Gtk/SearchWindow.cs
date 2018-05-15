@@ -8,7 +8,6 @@ namespace Trackr.Gui.Gtk {
 		protected HBox _searchControls;
 		protected Entry _searchBox;
 		protected Button _submit;
-		protected TreeView _treeView;
 		protected Toolbar _toolbar;
 		protected ToolButton _infoItem, _addItem, _editItem, _syncItem, _settingsItem;
 		

@@ -94,12 +94,23 @@ namespace Trackr.Test {
 		public void FindAnime(){
 			List<Anime> anime = _mal.FindAnime("Death Note").Result;
 			Assert.True(anime.Any(x => x.Id == 1535));
+			Assert.NotNull(anime.First(x => x.Id == 1535).Title);
 			Assert.True(anime.Any(x => x.Id == 2994));
 
 			anime = _mal.FindAnime("Pokémon").Result;
 			Assert.True(anime.Any(x => x.Id == 527));
 			Assert.True(anime.Any(x => x.Id == 2363));
 			Assert.True(anime.Any(x => x.Id == 20159));
+
+			anime = _mal.FindAnime("My Hero Academia").Result;
+			foreach(var a in anime) {
+				Assert.NotNull(a);
+				Assert.NotNull(a.Id);
+				Assert.NotNull(a.Title);
+			}
+
+			anime = _mal.FindAnime("Bob's Burgers").Result;
+			Assert.AreEqual(anime.Count, 0);
 		}
 
 		[Test]
@@ -201,7 +212,7 @@ namespace Trackr.Test {
 			Assert.AreEqual(yotsuba.Volumes, 0);
 			Assert.AreEqual(yotsuba.Type, Manga.MangaTypes.Manga);
 			Assert.AreEqual(yotsuba.Status, Manga.RunningStatuses.Publishing);
-			Assert.AreEqual(yotsuba.StartDate, new DateTime(2013, 03, 21));
+			Assert.AreEqual(yotsuba.StartDate, new DateTime(2003, 03, 21));
 		}
 
 		[TearDown]

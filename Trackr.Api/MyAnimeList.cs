@@ -109,13 +109,15 @@ namespace Trackr.Api {
         /// <exception cref="ApiFormatException">if the request times out.</exception>
         /// <exception cref="WebException">if a connection cannot be established.</exception>
         public async Task<List<Anime>> FindAnime(string keywords){
-            List<Anime> results = new List<Anime>();
+            var results = new List<Anime>();
             var response = await _client.GetAsync(Path.Combine(UrlBase, "anime", "search.xml") + "?q=" + Uri.EscapeDataString(keywords));
             if(response.StatusCode == HttpStatusCode.RequestTimeout)
                 throw new ApiRequestException("The request timed out.");
-            XmlDocument xml = new XmlDocument();
+            if(response.StatusCode == HttpStatusCode.NoContent)
+                return new List<Anime>();
+            var xml = new XmlDocument();
             xml.Load(response.Content.ReadAsStreamAsync().Result);
-            XmlNodeList nl = xml.SelectNodes("/anime/entry");
+            var nl = xml.SelectNodes("/anime/entry");
             if (nl != null)
                 results.AddRange(from XmlNode n in nl select ToAnime(n));
             return results;

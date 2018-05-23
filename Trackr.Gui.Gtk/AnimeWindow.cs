@@ -109,6 +109,15 @@ namespace Trackr.Gui.Gtk {
 			Program.AnimeList[ApiEntry.ListStatuses.OnHold].ForEach(x => HoldTree.Store.AppendValues(x));
 		}
 
+		// display changes
+		internal void Refresh() {
+			for(var j = 1; j < Views.Length; j++) {
+				var v = Views[j];
+				v.Hide();
+				v.Show();
+			}
+		}
+
 
 		private void OnFilterChanged(object o, EventArgs args) {
 			WatchingTree.Filter.Refilter();

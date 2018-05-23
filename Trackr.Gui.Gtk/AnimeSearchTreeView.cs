@@ -17,7 +17,6 @@ namespace Trackr.Gui.Gtk {
 			ListStatus
 		};
 		
-		internal new readonly ListStore Store;
 		private readonly TreeViewColumn _title, _episodes, _score, _type, _season, _status, _genre, _listStatus;
 
 		internal AnimeSearchTreeView() {
@@ -38,7 +37,7 @@ namespace Trackr.Gui.Gtk {
 			AppendColumn(_title);
 			
 			_episodes = new TreeViewColumn() {
-				Title = "Episode",
+				Title = "Episodes",
 				Resizable = true,
 				Clickable = true,
 				SortColumnId = (int)TreeColumns.Episodes
@@ -56,7 +55,7 @@ namespace Trackr.Gui.Gtk {
 			};
 			_score.Clicked += ScoreClicked;
 			_score.PackStart(new CellRendererText(), true);
-			_score.SetCellDataFunc(_score.CellRenderers[0], RenderScore);
+			_score.SetCellDataFunc(_score.CellRenderers[0], RenderPublicScore);
 			AppendColumn(_score);
 			
 			_type = new TreeViewColumn() { 
@@ -114,7 +113,7 @@ namespace Trackr.Gui.Gtk {
 			_listStatus.SetCellDataFunc(_listStatus.CellRenderers[0], RenderListStatus);
 			AppendColumn(_listStatus);
 			
-			RowActivated += OnAnimeRowActivated;
+			RowActivated += OnRowActivated;
 
 			ShowAll();
 		}
@@ -190,6 +189,38 @@ namespace Trackr.Gui.Gtk {
 			_season.SortIndicator = false;
 			_status.SortIndicator = false;
 			_genre.SortIndicator = false;
+		}
+
+		protected override void OnRowActivated(object o, RowActivatedArgs args) {
+			Store.GetIter(out var i, args.Path);
+			var a = (Anime)Store.GetValue(i, 0);
+			var d = new AnimeDialog(a);
+			var response = (ResponseType)d.Run();
+			var result = d.Result;
+			d.Destroy();
+
+			// We refill instead of doing this the more efficient way,
+			// as to not deal with specific references. This is justifiable
+			// since we are not looking at the list window right now, but the search one.
+			switch(response) {
+				// we're adding a new anime!
+				case ResponseType.Accept:
+					a.Replace(result);
+					Program.AnimeList.Add(a);
+					Program.Win.Fill(typeof(Anime));
+					break;
+				
+				// we're changing values!
+				case ResponseType.Apply:
+					a.Replace(result);
+					Program.AnimeList.Update(a);
+					Program.Win.Fill(typeof(Anime));
+					break;
+				
+				default: return; // We just want to cancel
+			}
+			
+			Program.Win.RefreshAnimeLists();
 		}
 	}
 }

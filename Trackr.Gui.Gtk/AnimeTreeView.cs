@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Linq;
 using Gtk;
 using Trackr.Api;
@@ -89,8 +90,9 @@ namespace Trackr.Gui.Gtk {
 			_next.SetCellDataFunc(_next.CellRenderers[0], RenderNextEpisode);
 			AppendColumn(_next);
 
-			RowActivated += OnAnimeRowActivated;
+			RowActivated += OnRowActivated;
 		}
+		
 
 		private void TitleClicked(object o, EventArgs args) {
 			SetSortOrder(_title);
@@ -155,6 +157,46 @@ namespace Trackr.Gui.Gtk {
 			if(a.Synopsis.ToLower().Contains(filter)) return true;
 			if(a.Synonyms.ToList().Exists(x => x.ToLower().Contains(filter))) return true;
 			return false;
+		}
+
+		protected override void OnRowActivated(object o, RowActivatedArgs args) {
+			Store.GetIter(out var i, args.Path);
+			var a = (Anime)Store.GetValue(i, 0); // original
+			var d = new AnimeDialog(a);
+			var response = (ResponseType)d.Run();
+			var result = d.Result; // new version
+			d.Destroy();
+
+			switch(response) {
+				// We activated a row from the list! No way we could be adding it!
+				case ResponseType.Accept:
+					Debug.WriteLine("Adding an anime that already exists!");
+					break;
+
+				// We're changing values!
+				case ResponseType.Apply:
+					// Deleteing from list...
+					if(result.ListStatus == ApiEntry.ListStatuses.NotInList) {
+						Program.AnimeList.Remove(a);
+						Store.Remove(ref i);
+						return;
+					}
+
+					// We have to move it to a different list!
+					if(a.ListStatus != result.ListStatus) {
+						a.Replace(result);
+						Store.Remove(ref i);
+						Program.Win.AnimeBox.Views[(int)a.ListStatus].Store.AppendValues(a);
+					}
+					// just update the values
+					else a.Replace(result);
+
+					Program.AnimeList.Update(a);
+					Program.Win.RefreshAnimeLists();
+					break;
+
+				default: return; // We just want to cancel
+			}
 		}
 	}
 }

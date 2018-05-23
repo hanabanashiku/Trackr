@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using Gtk;
 using Trackr.Api;
@@ -13,14 +12,16 @@ namespace Trackr.Gui.Gtk {
 
 		internal AnimeSearchWindow() {
 			_treeView = new AnimeSearchTreeView();
-			Add(_treeView);
+			var sw = new ScrolledWindow() { _treeView };
+			sw.SetPolicy(PolicyType.Automatic, PolicyType.Automatic);
+			Add(sw);
 			_searchBox.Changed += OnChanged;
 			_searchBox.Activated += OnSubmit;
 			_submit.Clicked += OnSubmit;
 			_treeView.Visible = false;
 		}
 
-		internal async void Search(string keywords) {
+		private async void Search(string keywords) {
 			if(_locked) return; // some thread safety
 			Disable();
 			
@@ -44,6 +45,11 @@ namespace Trackr.Gui.Gtk {
 			
 			foreach(var a in results)
 				_treeView.Store.AppendValues(a);
+		}
+
+		internal void Refresh() {
+			_treeView.Hide();
+			_treeView.Show();
 		}
 
 		private void OnChanged(object o, EventArgs args) {

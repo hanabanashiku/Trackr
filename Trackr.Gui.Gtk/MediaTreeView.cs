@@ -1,8 +1,6 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
-using System.Threading.Tasks;
 using Gtk;
 
 using Trackr.Api;
@@ -10,52 +8,8 @@ using Trackr.Api;
 namespace Trackr.Gui.Gtk {
 	internal abstract class MediaTreeView<T> : TreeView where T : ApiEntry {
 		internal ListStore Store;
-		
-		protected void OnAnimeRowActivated(object o, RowActivatedArgs args) {
-			TreeIter i;
-			Store.GetIter(out i, args.Path);
-			var a = (Anime)Store.GetValue(i, 0); // original
-			var d = new AnimeDialog(a);
-			var response = (ResponseType)d.Run();
-			var result = d.Result; // new version
-			d.Destroy();
-			
-			switch(response) {
-				// We activated a row from the list! No way we could be adding it!
-				case ResponseType.Accept:
-					Debug.WriteLine("Adding an anime that already exists!");
-					break;
-					
-				// We're changing values!
-				case ResponseType.Apply:
-					// Deleteing from list...
-					if(result.ListStatus == ApiEntry.ListStatuses.NotInList) {
-						Program.AnimeList.Remove(a);
-						Store.Remove(ref i);
-						return;
-					}
-					
-					// We have to move it to a different list!
-					if(a.ListStatus != result.ListStatus) {
-						a.Replace(result);
-						Store.Remove(ref i);
-						Program.Win.AnimeBox.Views[(int)a.ListStatus].Store.AppendValues(a);
-					}
-					// just update the values
-					else a.Replace(result);
-					
-					Program.AnimeList.Update(a);
 
-					for(var j = 1; j < Program.Win.AnimeBox.Views.Length; j++) {
-						var v = Program.Win.AnimeBox.Views[j];
-						v.Hide();
-						v.Show();
-					}
-					break;
-					
-				default: return; // We just want to cancel
-			}
-		}
+		protected abstract void OnRowActivated(object o, RowActivatedArgs args);
 		
 		protected static void RenderTitle(TreeViewColumn c, CellRenderer cell, TreeModel m, TreeIter i) {
 			var a = (ApiEntry)m.GetValue(i, 0);

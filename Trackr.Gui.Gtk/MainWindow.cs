@@ -1,12 +1,10 @@
 ﻿﻿using System;
 using System.Diagnostics;
-using System.IO;
  using System.Threading.Tasks;
  using Gdk;
 using Gtk;
-using Trackr.List;
-using Image = Gtk.Image;
-using Window = Gtk.Window;
+ using Trackr.Api;
+ using Window = Gtk.Window;
 
 namespace Trackr.Gui.Gtk {
 	public class MainWindow : Window {
@@ -22,7 +20,7 @@ namespace Trackr.Gui.Gtk {
 		internal AnimeWindow AnimeBox;
 		private NullAccountWindow _nullAccountBox;
 		private VBox _mangaBox, _defaultSearch;
-		private SearchWindow _animeSearch;
+		private AnimeSearchWindow _animeSearch;
 		private SearchWindow _mangaSearch;
 		internal Statusbar Statusbar;
 		internal Label StatusLabel;
@@ -31,7 +29,9 @@ namespace Trackr.Gui.Gtk {
 		
 		public MainWindow() : base(Program.AppName) {
 			Icon = Program.AppIcon;
-			DefaultSize = new Size(700, 550);
+			SetSizeRequest(700, 550);
+			//DefaultSize = new Size(700, 550);
+			Resizable = false;
 			Role = "MainWindow";
 			WindowPosition = WindowPosition.Center;
 			KeepAbove = Program.Settings.KeepWindowOnTop;
@@ -140,9 +140,16 @@ namespace Trackr.Gui.Gtk {
 			AnimeBox.SyncItem.Clicked += OnSync;
 		}
 
-		internal void Fill() {
-			AnimeBox.Fill();
-			//_mangaBox.Fill();
+		internal void Fill(Type t = null) {
+			if(t == null || t == typeof(Anime))
+				AnimeBox.Fill();
+			//if(t == null || t = typeof(Manga))
+			//	_mangaBox.Fill();
+		}
+
+		internal void RefreshAnimeLists() {
+			AnimeBox.Refresh();
+			_animeSearch.Refresh();
 		}
 
 		private void OnSidebarActivated(object o, EventArgs args) {

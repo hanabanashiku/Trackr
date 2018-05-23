@@ -6,8 +6,8 @@ using Trackr.Api;
 namespace Trackr.Gui.Gtk {	
 	internal class SearchWindow : VBox {
 		protected HBox _searchControls;
-		protected Entry _searchBox;
-		protected Button _submit;
+		internal Entry SearchBox;
+		internal Button Submit;
 		protected Toolbar _toolbar;
 		protected ToolButton _infoItem, _addItem, _editItem, _syncItem, _settingsItem;
 		
@@ -18,8 +18,8 @@ namespace Trackr.Gui.Gtk {
 
 		private void Instantiate() {
 			_searchControls = new HBox(false, 0);
-			_searchBox = new Entry();
-			_submit = new Button(new Image(Stock.Find, IconSize.Button));
+			SearchBox = new Entry();
+			Submit = new Button(new Image(Stock.Find, IconSize.Button));
 			_toolbar = new Toolbar();
 			_infoItem = new ToolButton(Stock.Info);
 			_addItem = new ToolButton(Stock.Add);
@@ -29,8 +29,8 @@ namespace Trackr.Gui.Gtk {
 		}
 
 		private void Build() {
-			_searchControls.PackStart(_searchBox, true, true, 10);
-			_searchControls.PackEnd(_submit, false, false, 10);
+			_searchControls.PackStart(SearchBox, true, true, 10);
+			_searchControls.PackEnd(Submit, false, false, 10);
 
 			_toolbar.ToolbarStyle = ToolbarStyle.Icons;
 			_toolbar.Add(_infoItem);

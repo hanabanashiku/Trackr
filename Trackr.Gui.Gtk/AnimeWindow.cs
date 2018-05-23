@@ -3,6 +3,7 @@ using Gtk;
 using Trackr.Api;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 
 namespace Trackr.Gui.Gtk {
 	internal class AnimeWindow : VBox {
@@ -11,6 +12,7 @@ namespace Trackr.Gui.Gtk {
 		private Toolbar _toolbar;
 		private ToolButton _infoItem, _editItem, _removeItem;
 		internal ToolButton SettingsItem, SyncItem;
+		private Fixed _entryFixed;
 		internal Entry FilterEntry; // note: This as written will mean that searches won't carry over through different tabs
 		internal AnimeTreeView[] Views;
 
@@ -38,6 +40,8 @@ namespace Trackr.Gui.Gtk {
 			_removeItem = new ToolButton(Stock.Remove);
 			SyncItem = new ToolButton(Stock.Refresh);
 			SettingsItem = new ToolButton(Stock.Preferences);
+			
+			_entryFixed = new Fixed();
 			FilterEntry = new Entry();
 
 		}
@@ -87,9 +91,9 @@ namespace Trackr.Gui.Gtk {
 			SyncItem.TooltipText = "Synchronize List With Server";
 			_toolbar.Add(SettingsItem);
 			SettingsItem.TooltipText = "Change Application Settings";
-			//TODO anything other than this
-			for(var x = 0; x < 22; x++) _toolbar.Add(new SeparatorToolItem(){Draw = false});
-			_toolbar.Add(new ToolItem(){FilterEntry});
+			
+			_toolbar.Add(new ToolItem(){_entryFixed});
+			_entryFixed.Put(FilterEntry, 250, 10);
 			FilterEntry.Changed += OnFilterChanged;
 			FilterEntry.Activated += OnFilterActivated;
 		} // build
@@ -128,7 +132,10 @@ namespace Trackr.Gui.Gtk {
 		}
 
 		private void OnFilterActivated(object o, EventArgs args) {
-			//TODO Switch to Search tab, move search results
+			Program.Win.SwitchTab(MainWindow.Page.AnimeSearch);
+			Program.Win.AnimeSearch.SearchBox.Text = FilterEntry.Text;
+			FilterEntry.Text = "";
+			Program.Win.AnimeSearch.Submit.Click();
 		}
 
 		// Sync the list with the store

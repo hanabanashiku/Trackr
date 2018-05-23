@@ -20,17 +20,17 @@ namespace Trackr.Gui.Gtk {
 		internal AnimeWindow AnimeBox;
 		private NullAccountWindow _nullAccountBox;
 		private VBox _mangaBox, _defaultSearch;
-		private AnimeSearchWindow _animeSearch;
+		internal AnimeSearchWindow AnimeSearch;
 		private SearchWindow _mangaSearch;
 		internal Statusbar Statusbar;
 		internal Label StatusLabel;
 		
-		private enum Page { Anime = 0, Manga = 1, NullAccount = 2, DefaultSearch = 3, AnimeSearch = 4, MangaSearch = 5 }
+		internal enum Page { Anime = 0, Manga = 1, NullAccount = 2, DefaultSearch = 3, AnimeSearch = 4, MangaSearch = 5 }
 		
 		public MainWindow() : base(Program.AppName) {
 			Icon = Program.AppIcon;
-			SetSizeRequest(700, 550);
-			//DefaultSize = new Size(700, 550);
+			DefaultSize = new Size(710, 550);
+			SetSizeRequest(710, 550);
 			Resizable = false;
 			Role = "MainWindow";
 			WindowPosition = WindowPosition.Center;
@@ -42,9 +42,9 @@ namespace Trackr.Gui.Gtk {
 			DeleteEvent += OnDelete;
 			ShowAll();
 			
-			if(Program.AnimeList != null) _nb.CurrentPage = (int)Page.Anime;
-			else if (Program.MangaList != null) _nb.CurrentPage = (int) Page.Manga;
-			else _nb.CurrentPage = (int) Page.NullAccount;
+			if(Program.AnimeList != null) SwitchTab(Page.Anime);
+			else if (Program.MangaList != null) SwitchTab(Page.Manga);
+			else SwitchTab(Page.NullAccount);
 		}
 
 		private void Instantiate() {
@@ -78,7 +78,7 @@ namespace Trackr.Gui.Gtk {
 			_mangaBox = new VBox();
 			_nullAccountBox = new NullAccountWindow();
 			_defaultSearch = new VBox();
-			_animeSearch = new AnimeSearchWindow();
+			AnimeSearch = new AnimeSearchWindow();
 			_mangaSearch = new SearchWindow();
 
 		}
@@ -132,12 +132,16 @@ namespace Trackr.Gui.Gtk {
 			_nb.Add(_mangaBox);
 			_nb.Add(_nullAccountBox);
 			_nb.Add(_defaultSearch);
-			_nb.Add(_animeSearch);
+			_nb.Add(AnimeSearch);
 			_nb.Add(_mangaSearch);
 
 			// toolbar buttons
 			AnimeBox.SettingsItem.Clicked += OnSettings;
 			AnimeBox.SyncItem.Clicked += OnSync;
+		}
+
+		internal void SwitchTab(Page p) {
+			_nb.CurrentPage = (int)p;
 		}
 
 		internal void Fill(Type t = null) {
@@ -149,7 +153,7 @@ namespace Trackr.Gui.Gtk {
 
 		internal void RefreshAnimeLists() {
 			AnimeBox.Refresh();
-			_animeSearch.Refresh();
+			AnimeSearch.Refresh();
 		}
 
 		private void OnSidebarActivated(object o, EventArgs args) {
@@ -159,20 +163,20 @@ namespace Trackr.Gui.Gtk {
 			switch((string)_sidebar.Model.GetValue(i, 1)) {
 				case "Anime":
 					// Switch to the null account page or the anime page
-					_nb.CurrentPage = Program.AnimeList == null ? (int)Page.NullAccount : (int)Page.Anime;
+					SwitchTab(Program.AnimeList == null ? Page.NullAccount : Page.Anime);
 					break;
 				case "Manga":
 					// Switch to the null account page or the manga page
-					_nb.CurrentPage = (Program.MangaList == null) ? (int)Page.NullAccount : (int)Page.Manga;
+					SwitchTab((Program.MangaList == null) ? Page.NullAccount : Page.Manga);
 					break;
 				case "Search":
-					_nb.CurrentPage = (int)Page.DefaultSearch;
+					SwitchTab(Page.DefaultSearch);
 					break;
 				case "Anime ":
-					_nb.CurrentPage = (Program.AnimeList == null) ? (int)Page.NullAccount : (int)Page.AnimeSearch;
+					SwitchTab((Program.AnimeList == null) ? Page.NullAccount : Page.AnimeSearch);
 					break;
 				case "Manga ":
-					_nb.CurrentPage = (Program.MangaList == null) ? (int)Page.NullAccount : (int)Page.MangaSearch;
+					SwitchTab((Program.MangaList == null) ? Page.NullAccount : Page.MangaSearch);
 					break;
 				default:
 					Debug.WriteLine("Warning: Unknown page");

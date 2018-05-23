@@ -15,9 +15,9 @@ namespace Trackr.Gui.Gtk {
 			var sw = new ScrolledWindow() { _treeView };
 			sw.SetPolicy(PolicyType.Automatic, PolicyType.Automatic);
 			Add(sw);
-			_searchBox.Changed += OnChanged;
-			_searchBox.Activated += OnSubmit;
-			_submit.Clicked += OnSubmit;
+			SearchBox.Changed += OnChanged;
+			SearchBox.Activated += OnSubmit;
+			Submit.Clicked += OnSubmit;
 			_treeView.Visible = false;
 		}
 
@@ -58,21 +58,21 @@ namespace Trackr.Gui.Gtk {
 		
 		private async void OnSubmit(object o, EventArgs args) {
 			// no unnecessary requests
-			if(_searchBox.Text == "" || !_changed) return;
+			if(SearchBox.Text == "" || !_changed) return;
 
 			_treeView.Visible = true;
-			await Task.Run(() => Search(_searchBox.Text));
+			await Task.Run(() => Search(SearchBox.Text));
 			_changed = false;
 		}
 
 		private void Enable() {
 			_locked = false;
-			_submit.Sensitive = true;
+			Submit.Sensitive = true;
 		}
 
 		private void Disable() {
 			_locked = true;
-			_submit.Sensitive = false;
+			Submit.Sensitive = false;
 		}
 
 	}

@@ -44,19 +44,26 @@ namespace Trackr.List {
         /// </summary>
         /// <param name="client">The API client to use</param>
         /// <returns></returns>
-        public static AnimeList Load(IAnime client){
+        public static AnimeList Load(IAnime client) {
+            AnimeList list = null;
             try {
                 var f = new BinaryFormatter();
                 var fs = new FileStream(ResolveFilePath(client), FileMode.Open, FileAccess.Read, FileShare.Read);
-                var list = (AnimeList) f.Deserialize(fs);
+                var t = (AnimeList)f.Deserialize(fs);
                 fs.Close();
-                list._client = client;
-                Task.Run(() => list.Sync());
+                t._client = client;
+                list = t;
+                Task.Run(() => t.Sync());
                 return list;
             }
             catch(FileNotFoundException) {
-                var list = new AnimeList(client);
+                list = new AnimeList(client);
                 list.Sync().Wait();
+                return list;
+            }
+            catch(ApiRequestException) {
+                Debug.WriteLine("Anime List sync failed.");
+                if(list == null) throw;
                 return list;
             }
         }

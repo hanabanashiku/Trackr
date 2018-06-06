@@ -72,7 +72,7 @@ namespace Trackr.Api {
             });
             var response = await _client.PostAsync(AuthUrl, data);
             if(response.StatusCode != HttpStatusCode.OK) {
-                Debug.Write(response.Content.ReadAsStringAsync(), "Kitsu WARNING");
+                Console.Write(response.Content.ReadAsStringAsync());
                 return false;
             }
             // store the token in the client and make a note of the expiration time.

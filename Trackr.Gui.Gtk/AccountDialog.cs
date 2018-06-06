@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Threading.Tasks;
 using Gtk;
 using Trackr.Api;
 using Trackr.Core;
@@ -171,7 +172,7 @@ namespace Trackr.Gui.Gtk {
 					else //if(_type.ActiveText == "Kitsu")
 						api = new Kitsu(cred);
 					try {
-						res = await api.VerifyCredentials();
+						res = Task.Run(() => api.VerifyCredentials()).Result;
 					}
 					// ApiRequestException, WebException...
 					catch(Exception e) {
@@ -180,6 +181,7 @@ namespace Trackr.Gui.Gtk {
 						var ret = ed.Run();
 						ed.Destroy();
 						Debug.WriteLine("[Exception] " + (e.InnerException?.Message ?? e.Message));
+						Debug.WriteLineIf(e.InnerException != null, e.InnerException?.StackTrace);
 						
 						if(ret == (int)ResponseType.Cancel)
 							Respond(ResponseType.Reject);

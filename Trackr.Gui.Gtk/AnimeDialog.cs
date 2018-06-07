@@ -13,7 +13,7 @@ namespace Trackr.Gui.Gtk {
 		
 		public AnimeDialog(Anime a) : base(a) {
 			Result = new Anime(a);
-
+			
 			Build();
 			ShowAll();
 		}
@@ -50,7 +50,14 @@ namespace Trackr.Gui.Gtk {
 
 		private void BuildListWindow() {
 			_scoreSpin = new SpinButton(new Adjustment(Original.UserScore, 0, 10, 1, 10, 0), 1, 0);
-			_userStart = new DatePicker(Original.UserStart);
+			
+			// default date is today when adding
+			if(Original.UserStart == DateTime.MinValue && Original.ListStatus == ApiEntry.ListStatuses.NotInList) {
+				Result.UserStart = DateTime.Today;
+				_userStart = new DatePicker(DateTime.Today);
+			}
+			else _userStart = new DatePicker(Original.UserStart);
+			
 			_userEnd = new DatePicker(Original.UserEnd);
 			_notesEntry = new TextView() {Buffer = {Text = Original.Notes}};
 			

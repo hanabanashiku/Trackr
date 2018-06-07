@@ -53,7 +53,8 @@ namespace Trackr.Gui.Gtk {
 				var a = (Anime)m.GetValue(i, 0);
 				if(a.Episodes == 0) {
 					// we don't know how many episodes
-					if(a.AirTimes.Count > 0)
+					// TODO Make sure its not null
+					if(a.AirTimes != null && a.AirTimes.Count > 0)
 						crp.Value = (int)(a.CurrentEpisode / (decimal)a.AirTimes.Keys.Max() * 100); // use the last known episode
 					else if(a.StartDate != DateTime.MinValue) {
 						// Estimate based on one episode per week
@@ -180,7 +181,7 @@ namespace Trackr.Gui.Gtk {
 		// Otherwise, say if the next episode is in the library folders, or if the next episode has been released
 		protected static void RenderNextEpisode(TreeViewColumn c, CellRenderer cell, TreeModel m, TreeIter i) {
 			var a = (Anime)m.GetValue(i, 0);
-			if(!a.AirTimes.ContainsKey(a.CurrentEpisode + 1)) return;
+			if(a.AirTimes == null || !a.AirTimes.ContainsKey(a.CurrentEpisode + 1)) return;
 			
 			var dt = a.AirTimes[a.CurrentEpisode + 1];
 			// TODO: if currently in library folders

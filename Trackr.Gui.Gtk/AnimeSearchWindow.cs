@@ -19,6 +19,8 @@ namespace Trackr.Gui.Gtk {
 			SearchBox.Activated += OnSubmit;
 			Submit.Clicked += OnSubmit;
 			_treeView.Visible = false;
+			AddItem.Clicked += OnAdd;
+			_treeView.CursorChanged += OnRowSelected;
 		}
 
 		private async void Search(string keywords) {
@@ -65,14 +67,37 @@ namespace Trackr.Gui.Gtk {
 			_changed = false;
 		}
 
+		// Enable searching (request has completed)
 		private void Enable() {
 			_locked = false;
 			Submit.Sensitive = true;
 		}
 
+		// Disable searching (request in progress)
 		private void Disable() {
 			_locked = true;
 			Submit.Sensitive = false;
+		}
+
+		// User clicked the add button
+		private void OnAdd(object o, EventArgs args) {
+			_treeView.Selection.GetSelected(out var i);
+			var a = (Anime)_treeView.Store.GetValue(i, 0);
+			if(a.ListStatus != ApiEntry.ListStatuses.NotInList) return;
+
+			a.ListStatus = ApiEntry.ListStatuses.Current;
+			a.UserStart = DateTime.Today;
+			Program.AnimeList.Add(a);
+			Program.Win.AnimeBox.WatchingTree.Store.AppendValues(a);
+
+			AddItem.Visible = false;
+			Refresh();
+		}
+
+		private void OnRowSelected(object o, EventArgs args) {
+			_treeView.Selection.GetSelected(out var i);
+			var a = (ApiEntry)_treeView.Store.GetValue(i, 0);
+			AddItem.Visible = a.ListStatus == ApiEntry.ListStatuses.NotInList;
 		}
 
 	}

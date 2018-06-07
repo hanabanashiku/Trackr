@@ -169,8 +169,11 @@ namespace Trackr.Gui.Gtk {
 		protected void OnAdd(object o, EventArgs args) {
 			Create = true;
 			Nb.InsertPage(ListWindow, new Label("List"), 0);
+			Nb.ShowAll();
 			Nb.CurrentPage = 0;
+			StatusBox.Active = (int)ApiEntry.ListStatuses.Current - 1;
 			AddRemoveButton.Visible = false;
+			
 		}
 
 		protected void OnRemove(object o, EventArgs args) {

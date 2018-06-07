@@ -774,7 +774,7 @@ namespace Trackr.Api {
 
         // when performing oauth functions, lets make sure that our token has not expired.
         private async void AuthenticationCheck(){
-            if(_userId == 0 || !await VerifyCredentials())
+            if(!await VerifyCredentials())
                 throw new ApiRequestException("[Kitsu] Could not verify user credentials");
             if(DateTime.Now >= _expiration) await Authenticate();
         }

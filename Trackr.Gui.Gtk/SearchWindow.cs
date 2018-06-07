@@ -9,7 +9,7 @@ namespace Trackr.Gui.Gtk {
 		internal Entry SearchBox;
 		internal Button Submit;
 		protected Toolbar _toolbar;
-		protected ToolButton _infoItem, _addItem, _editItem, _syncItem, _settingsItem;
+		protected ToolButton InfoItem, AddItem, EditItem, SyncItem, SettingsItem;
 		
 		internal SearchWindow() : base(false, 0) {
 			Instantiate();
@@ -21,11 +21,11 @@ namespace Trackr.Gui.Gtk {
 			SearchBox = new Entry();
 			Submit = new Button(new Image(Stock.Find, IconSize.Button));
 			_toolbar = new Toolbar();
-			_infoItem = new ToolButton(Stock.Info);
-			_addItem = new ToolButton(Stock.Add);
-			_editItem = new ToolButton(Stock.Edit);
-			_syncItem = new ToolButton(Stock.Refresh);
-			_settingsItem = new ToolButton(Stock.Preferences);
+			InfoItem = new ToolButton(Stock.Info);
+			AddItem = new ToolButton(Stock.Add);
+			EditItem = new ToolButton(Stock.Edit);
+			SyncItem = new ToolButton(Stock.Refresh);
+			SettingsItem = new ToolButton(Stock.Preferences);
 		}
 
 		private void Build() {
@@ -33,14 +33,16 @@ namespace Trackr.Gui.Gtk {
 			_searchControls.PackEnd(Submit, false, false, 10);
 
 			_toolbar.ToolbarStyle = ToolbarStyle.Icons;
-			_toolbar.Add(_infoItem);
-			_toolbar.Add(_addItem);
-			_toolbar.Add(_editItem);
-			_toolbar.Add(_syncItem);
-			_toolbar.Add(_settingsItem);
+			_toolbar.Add(InfoItem);
+			_toolbar.Add(AddItem);
+			_toolbar.Add(EditItem);
+			_toolbar.Add(SyncItem);
+			_toolbar.Add(SettingsItem);
 			
 			PackStart(_searchControls, false, false, 5);
 			PackEnd(_toolbar, false, false, 0);
 		}
+		
+		
 	}
 }

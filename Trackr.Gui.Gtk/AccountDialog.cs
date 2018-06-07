@@ -177,7 +177,7 @@ namespace Trackr.Gui.Gtk {
 					// ApiRequestException, WebException...
 					catch(Exception e) {
 						var ed = new MessageDialog(null, DialogFlags.DestroyWithParent, MessageType.Error, ButtonsType.OkCancel,
-							"The request has timed out.") {WindowPosition = WindowPosition.Center};
+							e.InnerException?.Message ?? e.Message) {WindowPosition = WindowPosition.Center};
 						var ret = ed.Run();
 						ed.Destroy();
 						Debug.WriteLine("[Exception] " + (e.InnerException?.Message ?? e.Message));

@@ -71,10 +71,15 @@ namespace Trackr.Api {
                 new KeyValuePair<string, string>("password", _clientLogin.Password)
             });
             var response = await _client.PostAsync(AuthUrl, data);
+            if(response.StatusCode == HttpStatusCode.RequestTimeout)
+                throw new ApiRequestException("The request timed out.");
+            if(response.StatusCode == HttpStatusCode.NotFound || response.StatusCode == HttpStatusCode.Forbidden)
+                throw new ApiRequestException("The requested service is temporarily unavailable.");
             if(response.StatusCode != HttpStatusCode.OK) {
-                Console.Write(response.Content.ReadAsStringAsync());
+                Debug.WriteLine(response.StatusCode);
                 return false;
             }
+            
             // store the token in the client and make a note of the expiration time.
             var json = JsonValue.Parse(response.Content.ReadAsStringAsync().Result);
             if(json == null) return false;

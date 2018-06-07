@@ -21,9 +21,9 @@ namespace Trackr.Gui.Gtk {
 			SearchBox = new Entry();
 			Submit = new Button(new Image(Stock.Find, IconSize.Button));
 			_toolbar = new Toolbar();
-			InfoItem = new ToolButton(Stock.Info);
-			AddItem = new ToolButton(Stock.Add);
-			EditItem = new ToolButton(Stock.Edit);
+			InfoItem = new ToolButton(Stock.Info) {Sensitive = false};
+			AddItem = new ToolButton(Stock.Add) {Sensitive = false};
+			EditItem = new ToolButton(Stock.Edit) {Sensitive = false};
 			SyncItem = new ToolButton(Stock.Refresh);
 			SettingsItem = new ToolButton(Stock.Preferences);
 		}

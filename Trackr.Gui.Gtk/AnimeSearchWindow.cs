@@ -95,6 +95,9 @@ namespace Trackr.Gui.Gtk {
 		}
 
 		private void OnRowSelected(object o, EventArgs args) {
+			EditItem.Sensitive = true;
+			AddItem.Sensitive = true;
+			InfoItem.Sensitive = true;
 			_treeView.Selection.GetSelected(out var i);
 			var a = (ApiEntry)_treeView.Store.GetValue(i, 0);
 			AddItem.Visible = a.ListStatus == ApiEntry.ListStatuses.NotInList;

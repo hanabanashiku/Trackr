@@ -57,8 +57,11 @@ namespace Trackr.Api {
         /// <exception cref="WebException">if a connection cannot be established.</exception>
         public override async Task<bool> VerifyCredentials(){
             var response = await _client.GetAsync(Path.Combine(UrlBase, "account", "verify_credentials.xml"));
+            Console.WriteLine(response.StatusCode);
             if(response.StatusCode == HttpStatusCode.RequestTimeout)
                 throw new ApiRequestException("The request timed out.");
+            if(response.StatusCode == HttpStatusCode.NotFound || response.StatusCode == HttpStatusCode.Forbidden)
+                throw new ApiRequestException("The requested service is temporarily unavailable.");
             return response.StatusCode == HttpStatusCode.OK; // If credentials are wrong it throws a 401 error
         }
 

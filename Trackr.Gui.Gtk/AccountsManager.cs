@@ -105,7 +105,7 @@ namespace Trackr.Gui.Gtk {
 			var a = AccountList.First(x =>
 				(string) model.GetValue(i, (int) Columns.Username) == x.Username &&
 				(string) model.GetValue(i, (int) Columns.Service) == x.Provider);
-			var dialog = new AccountDialog(a.Username, a.Credentials, a.Provider, GetDefaultAccounts(a));
+			var dialog = new AccountDialog(a, GetDefaultAccounts(a));
 			if(dialog.Run() == (int)ResponseType.Accept) {
 				a.Credentials.Password = dialog.Result.Credentials.Password;
 				if(dialog.DefaultAnime) DefAnime = a;

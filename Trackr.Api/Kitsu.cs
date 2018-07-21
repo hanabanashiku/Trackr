@@ -24,6 +24,7 @@ namespace Trackr.Api {
 
         public override string Name { get; } = Identifier;
         public override string Username => _username;
+        public string Email => _email;
 
         private const string ContentType = "application/vnd.api+json";
         private const string AuthUrl = "https://kitsu.io/api/oauth/token";
@@ -54,8 +55,10 @@ namespace Trackr.Api {
         private DateTime _expiration;
         private int _userId;
         private string _username;
+        private string _email;
 
-        public Kitsu(UserPass credentials){
+        public Kitsu(UserPass credentials) {
+            _email = credentials.Username;
             _clientLogin = credentials;
             _client = new HttpClient();
             _client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue(ContentType));
@@ -67,7 +70,7 @@ namespace Trackr.Api {
                 new KeyValuePair<string, string>("grant_type", "password"),
                 new KeyValuePair<string, string>("client_id", ClientId),
                 new KeyValuePair<string, string>("client_secret", ClientSecret),
-                new KeyValuePair<string, string>("username", _clientLogin.Username),
+                new KeyValuePair<string, string>("username", Email),
                 new KeyValuePair<string, string>("password", _clientLogin.Password)
             });
             var response = await _client.PostAsync(AuthUrl, data);

@@ -15,6 +15,13 @@ namespace Trackr.Core {
 		/// </summary>
 		public string Username;
 		/// <summary>
+		/// The account email
+		/// </summary>
+		/// <remarks>
+		/// Pretty much just for Kitsu, as you need the email (not the username) to log in.
+		/// </remarks>
+		public string Email;
+		/// <summary>
 		/// The credentials being used.
 		/// </summary>
 		/// <remarks>
@@ -26,10 +33,12 @@ namespace Trackr.Core {
 		/// <param name="prov">The API provider</param>
 		/// <param name="username">The username of the account</param>
 		/// <param name="credentials">The account credentials</param>
-		public Account(string prov, string username, UserPass credentials) {
+		/// <param name="email">The account email address</param>
+		public Account(string prov, string username, UserPass credentials, string email = "") {
 			Provider = prov;
 			Username = username;
 			Credentials = credentials;
+			Email = email;
 		}
 
 		// Copy constructor
@@ -37,6 +46,7 @@ namespace Trackr.Core {
 			Provider = a.Provider;
 			Username = a.Username;
 			Credentials = new UserPass(a.Credentials.Username, a.Credentials.Password);
+			Email = a.Email;
 		}
 
 		public static bool operator ==(Account a, Account b) {

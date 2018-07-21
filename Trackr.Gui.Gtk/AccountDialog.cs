@@ -31,11 +31,14 @@ namespace Trackr.Gui.Gtk {
 		private Button _okButton, _cancelButton;
 		private CheckButton _defAnimeCheck, _defMangaCheck;
 		private readonly string[] _options = {"MyAnimeList", "Kitsu", "AniList"};
+		private string _email;
+		private readonly bool _editing;
 
 		/// <summary>
 		/// A constructor for account adding.
 		/// </summary>
 		public AccountDialog() {
+			_editing = false;
 			Title = "Add Account";
 			BorderWidth = 10;
 			WindowPosition = WindowPosition.Center;
@@ -46,17 +49,19 @@ namespace Trackr.Gui.Gtk {
 		/// <summary>
 		/// A constructor for account editing.
 		/// </summary>
-		public AccountDialog(string username, UserPass cred, string provider, string def) : this() {
+		public AccountDialog(Account a, string def) : this() {
+			_editing = true;
 			Title = "Edit Account";
-			_username.Text = username;
+			_username.Text = a.Username;
 			_username.Sensitive = false;
-			_password.Text = cred.Password; // Does not allow you to copy password out
-			_type.Active = Array.FindIndex(_options, x => x.Equals(provider));
+			_password.Text = a.Credentials.Password; // Does not allow you to copy password out
+			_type.Active = Array.FindIndex(_options, x => x.Equals(a.Provider));
 			_type.Sensitive = false;
 			if(def.Contains("A"))
 				_defAnimeCheck.Active = true;
 			if(def.Contains("M"))
 				_defMangaCheck.Active = true;
+			_email = a.Email;
 		}
 
 		private void Build() {
@@ -138,6 +143,13 @@ namespace Trackr.Gui.Gtk {
 					_defMangaCheck.Sensitive = false;
 					break;
 			}
+
+			// Kitsu requires an email, but if we are editing it will display the username.
+			if(_editing == false && _type.ActiveText == "Kitsu")
+				_userLabel.Text = "Email";
+			else if(_editing == false)
+				_userLabel.Text = "Username";
+			
 			OnTextChange(o, args);
 		}
 
@@ -160,17 +172,23 @@ namespace Trackr.Gui.Gtk {
 		private async void OnOkButton(object o, EventArgs args) {
 			UserPass cred;
 			Api.Api api;
-			var res = false;
+			bool res; // result of credential verification
 			
 			_okButton.Sensitive = false;
+			// what type of account are we recreating?
 			switch(_type.ActiveText) {
-				
 				case "MyAnimeList": case "Kitsu":
-					cred = new UserPass(_username.Text, _password.Text);
-					if(_type.ActiveText == "MyAnimeList")
+					if(_type.ActiveText == "MyAnimeList") {
+						cred = new UserPass(_username.Text, _password.Text);
 						api = new MyAnimeList(cred);
-					else //if(_type.ActiveText == "Kitsu")
+					}
+					else if(_type.ActiveText == "Kitsu") {
+						if(!_editing) _email = _username.Text;
+						cred = new UserPass(_email, _password.Text);
 						api = new Kitsu(cred);
+					}
+					else throw new NotImplementedException();
+
 					try {
 						res = Task.Run(() => api.VerifyCredentials()).Result;
 					}
@@ -182,15 +200,17 @@ namespace Trackr.Gui.Gtk {
 						ed.Destroy();
 						Debug.WriteLine("[Exception] " + (e.InnerException?.Message ?? e.Message));
 						Debug.WriteLineIf(e.InnerException != null, e.InnerException?.StackTrace);
-						
+
 						if(ret == (int)ResponseType.Cancel)
 							Respond(ResponseType.Reject);
 						_okButton.Sensitive = true;
 						return;
 					}
-					
+
 					if(res) {
-						Result = new Account(api.Name, api.Username, cred);
+						if(api.GetType() == typeof(Kitsu))
+							Result = new Account(api.Name, api.Username, cred, ((Kitsu)api).Email);
+						else Result = new Account(api.Name, api.Username, cred);
 						Respond(ResponseType.Accept);
 					}
 					else { // Invalid username or password!

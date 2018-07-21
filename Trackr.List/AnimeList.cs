@@ -128,6 +128,8 @@ namespace Trackr.List {
         public async Task<bool> Sync() {
             var remote = await _client.PullAnimeList();
             /*   CASES
+                0. A queued anime is in neither the remote or the list.
+                    It has likely been manually deleted after a list error.
                 1. The anime is in remote, but not in list
                     a. The anime is enqueued for deletion - delete from server
                     b. The anime is not enqueued for deletion - it was added to the server; add it to the list
@@ -144,6 +146,11 @@ namespace Trackr.List {
             var clientUnique = _entries.Except(remote).ToList(); // entries - remote
             var common = _entries.Except(remoteUnique).Except(clientUnique).ToList(); // entries u remote
 
+            // Case 0: empty the queue of expired values
+            foreach(var e in _queue)
+                if(!remote.Contains(e) && !_entries.Contains(e))
+                    _queue.Remove(e);
+            
             // Case 1: unique to server
             foreach(var a in remoteUnique) {
                 if(!_queue.Contains(a))
@@ -158,11 +165,15 @@ namespace Trackr.List {
             foreach(var a in clientUnique) {
                 if(!_queue.Contains(a))
                     _entries.Remove(a);
+                
                 else if(_queue.First(x => x.Id == a.Id).ListStatus != ApiEntry.ListStatuses.NotInList) {
-                    await _client.AddAnime(a.Id, a.ListStatus);
-                    await _client.UpdateAnime(a);
-                    _queue.Remove(a);
+                    if(!await _client.AddAnime(a.Id, a.ListStatus))
+                        Debug.WriteLine($"Failed to add {a.Id} {a.Title}");
+                    else if(!await _client.UpdateAnime(a))
+                        Debug.WriteLine($"Failed to update{a.Id} {a.Title}");
+                    else _queue.Remove(a);
                 }
+                
                 else {
                     _entries.Remove(a);
                     _queue.Remove(a);
@@ -175,17 +186,19 @@ namespace Trackr.List {
                     a.Replace(remote.First(x => x.Id == a.Id)); // take the server values
                 }
                 else if(_queue.First(x => x.Id == a.Id).ListStatus != ApiEntry.ListStatuses.NotInList) {
-                    await _client.UpdateAnime(a);
-                    _queue.Remove(a);
+                    if(!await _client.UpdateAnime(a))
+                        Debug.WriteLine($"Failed to update {a.Id} {a.Title}");
+                    else _queue.Remove(a);
                 }
             }
 
             if(_queue.Count != 0) {
                 // Something may have gone wrong here
-                Debug.WriteLine("Queue is not empty!");
+                Debug.WriteLine("Queue is not empty! Something failed to sync..");
                 _queue.ForEach(x => Debug.WriteLine($"{x.Title}, {x.ListStatus}, {x.CurrentEpisode}"));
             }
-            return true;
+            else Debug.WriteLine("Queue is empty");
+            return _queue.Count == 0;
         }
 
         /// <summary>

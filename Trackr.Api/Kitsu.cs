@@ -24,7 +24,7 @@ namespace Trackr.Api {
 
         public override string Name { get; } = Identifier;
         public override string Username => _username;
-        public string Email => _email;
+        public string Email { get; }
 
         private const string ContentType = "application/vnd.api+json";
         private const string AuthUrl = "https://kitsu.io/api/oauth/token";
@@ -55,10 +55,9 @@ namespace Trackr.Api {
         private DateTime _expiration;
         private int _userId;
         private string _username;
-        private string _email;
 
         public Kitsu(UserPass credentials) {
-            _email = credentials.Username;
+            Email = credentials.Username;
             _clientLogin = credentials;
             _client = new HttpClient();
             _client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue(ContentType));
@@ -104,7 +103,7 @@ namespace Trackr.Api {
             // some calls require the user's id
             var response = await _client.GetAsync(UrlBase + "/users?filter[self]=true");
             var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
-            Debug.WriteIf(!response.IsSuccessStatusCode, response.Content.ReadAsStringAsync(), "Kitsu WARNING");
+            Debug.WriteLineIf(!response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync(), "Kitsu WARNING");
             if(json == null || json["data"].Count == 0) return false;
             var data = ((JsonArray)json["data"]).First();
             _username = data["attributes"]["name"];
@@ -113,8 +112,8 @@ namespace Trackr.Api {
         }
         
         public async Task<bool> AddAnime(int id){
-            AuthenticationCheck();
-
+            await AuthenticationCheck();
+            
             var data = new JsonObject() {
                 ["data"] = new JsonObject {
                     ["type"] = "libraryEntries",
@@ -141,13 +140,13 @@ namespace Trackr.Api {
             var response = await _client.SendAsync(new HttpRequestMessage(HttpMethod.Post, LibraryEntries) {
                 Content = new StringContent(data.ToString(), Encoding.UTF8, ContentType)
             });
-            Debug.WriteIf(!response.IsSuccessStatusCode, response.Content.ReadAsStringAsync(), "Kitsu WARNING");
+            Debug.WriteLineIf(!response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync(), "Kitsu WARNING");
             return response.StatusCode == HttpStatusCode.Created;
         }
 
         public async Task<bool> AddAnime(int id, ApiEntry.ListStatuses status){
-            AuthenticationCheck();
-
+            await AuthenticationCheck();
+            
             var data = new JsonObject() {
                 ["data"] = new JsonObject {
                     ["type"] = "libraryEntries",
@@ -174,7 +173,7 @@ namespace Trackr.Api {
             var response = await _client.SendAsync(new HttpRequestMessage(HttpMethod.Post, LibraryEntries) {
                 Content = new StringContent(data.ToString(), Encoding.UTF8, ContentType),
             });
-            Debug.WriteIf(!response.IsSuccessStatusCode, response.Content.ReadAsStringAsync(), "Kitsu WARNING");
+            Debug.WriteLineIf(!response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync(), "Kitsu WARNING");
             return response.StatusCode == HttpStatusCode.Created;
         }
 
@@ -184,14 +183,14 @@ namespace Trackr.Api {
         /// <param name="id">The ID of the anime to remove.</param>
         /// <returns>True on success</returns>
         public async Task<bool> RemoveAnime(int id){
-            AuthenticationCheck();
+            await AuthenticationCheck();
 
             var entryId = await GetEntryId(id, "anime");
             if(entryId == -1) return true; // the entry wasn't there
             if(entryId == -2) return false; // something went wrong
 
             var response = await _client.DeleteAsync(LibraryEntries + $"/{entryId}");
-            Debug.WriteIf(!response.IsSuccessStatusCode, response.Content.ReadAsStringAsync(), "Kitsu WARNING");
+            Debug.WriteLineIf(!response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync(), "Kitsu WARNING");
             return response.IsSuccessStatusCode; // 200OK, 204NOCONTENT
         }
 
@@ -268,7 +267,7 @@ namespace Trackr.Api {
             var url = EpisodeItems + $"?filter%5BmediaId%5D={animeId}&page%5Blimit%5D=20&page%5Boffset%5D={offset}";
             var response = client.GetAsync(url).Result;
             if(response.StatusCode != HttpStatusCode.OK) {
-                Debug.Write(response.Content.ReadAsStringAsync().Result, "Kitsu Episode WARNING");
+                Debug.WriteLine(response.Content.ReadAsStringAsync().Result, "Kitsu Episode WARNING");
                 throw new ApiRequestException(response.StatusCode.ToString());
             }
             var json = JsonValue.Parse(response.Content.ReadAsStringAsync().Result);
@@ -287,7 +286,7 @@ namespace Trackr.Api {
         /// <param name="a">The anime to update</param>
         /// <returns>True on success</returns>
         public async Task<bool> UpdateAnime(Anime a){
-            AuthenticationCheck();
+            await AuthenticationCheck();
             
             // Not in list, remove it
             if(a.ListStatus == ApiEntry.ListStatuses.NotInList)
@@ -338,7 +337,7 @@ namespace Trackr.Api {
             var response = await _client.SendAsync(new HttpRequestMessage(new HttpMethod("PATCH"), LibraryEntries + $"/{id}") {
                 Content = new StringContent(json.ToString(), Encoding.UTF8, ContentType)
             });
-            Debug.WriteIf(!response.IsSuccessStatusCode, response.Content.ReadAsStringAsync(), "Kitsu WARNING");
+            Debug.WriteLineIf(!response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync(), "Kitsu WARNING");
             return response.IsSuccessStatusCode;
         }
 
@@ -385,7 +384,7 @@ namespace Trackr.Api {
         }
 
         public async Task<bool> AddManga(int id){
-            AuthenticationCheck();
+            await AuthenticationCheck();
 
             var data = new JsonObject() {
                 ["data"] = new JsonObject {
@@ -413,12 +412,12 @@ namespace Trackr.Api {
             var response = await _client.SendAsync(new HttpRequestMessage(HttpMethod.Post, LibraryEntries) {
                 Content = new StringContent(data.ToString(), Encoding.UTF8, ContentType),
             });
-            Debug.WriteIf(!response.IsSuccessStatusCode, response.Content.ReadAsStringAsync(), "Kitsu WARNING");
+            Debug.WriteLineIf(!response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync(), "Kitsu WARNING");
             return response.StatusCode == HttpStatusCode.Created;
         }
         
         public async Task<bool> AddManga(int id, ApiEntry.ListStatuses status){
-            AuthenticationCheck();
+            await AuthenticationCheck();
 
             var data = new JsonObject() {
                 ["data"] = new JsonObject {
@@ -446,7 +445,7 @@ namespace Trackr.Api {
             var response = await _client.SendAsync(new HttpRequestMessage(HttpMethod.Post, LibraryEntries) {
                 Content = new StringContent(data.ToString(), Encoding.UTF8, ContentType),
             });
-            Debug.WriteIf(!response.IsSuccessStatusCode, response.Content.ReadAsStringAsync(), "Kitsu WARNING");
+            Debug.WriteLineIf(!response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync(), "Kitsu WARNING");
             return response.StatusCode == HttpStatusCode.Created;
         }
 
@@ -456,7 +455,7 @@ namespace Trackr.Api {
         /// <param name="id">The ID of the manga to remove.</param>
         /// <returns>True on success</returns>
         public async Task<bool> RemoveManga(int id){
-            AuthenticationCheck();
+            await AuthenticationCheck();
 
             var entryId = await GetEntryId(id, "manga");
             if(entryId == -1) return true; // the entry wasn't there
@@ -500,7 +499,7 @@ namespace Trackr.Api {
         /// <param name="m">The manga to update</param>
         /// <returns>True on success</returns>
         public async Task<bool> UpdateManga(Manga m){
-            AuthenticationCheck();
+            await AuthenticationCheck();
             if(m.ListStatus == ApiEntry.ListStatuses.NotInList)
                 return await RemoveManga(m.Id);
 
@@ -549,7 +548,7 @@ namespace Trackr.Api {
                 new HttpRequestMessage(new HttpMethod("PATCH"), LibraryEntries + $"/{id}") {
                     Content = new StringContent(json.ToString(), Encoding.UTF8, ContentType)
                 });
-            Debug.WriteIf(!response.IsSuccessStatusCode, response.Content.ReadAsStringAsync(), "Kitsu WARNING");
+            Debug.WriteLineIf(!response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync(), "Kitsu WARNING");
             return response.IsSuccessStatusCode;
         }
 
@@ -769,8 +768,7 @@ namespace Trackr.Api {
 
         private static DateTime ToDateTime(string date){
             if(date == null) return DateTime.MinValue;
-            DateTime ret;
-            if(DateTime.TryParseExact(date, DateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out ret))
+            if(DateTime.TryParseExact(date, DateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out var ret))
                 return ret;
             throw new ApiFormatException("Could not parse datetime " + date);
         }
@@ -781,10 +779,9 @@ namespace Trackr.Api {
         }
 
         // when performing oauth functions, lets make sure that our token has not expired.
-        private async void AuthenticationCheck(){
-            if(!await VerifyCredentials())
-                throw new ApiRequestException("[Kitsu] Could not verify user credentials");
-            if(DateTime.Now >= _expiration) await Authenticate();
+        private async Task<bool> AuthenticationCheck(){
+            if(DateTime.Now >= _expiration) await VerifyCredentials();
+            return true;
         }
 
         private static void GetClientInfo() {

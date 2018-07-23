@@ -60,12 +60,13 @@ namespace Trackr.Gui.Gtk {
             
             // Check default accounts
             if(Settings.DefaultAnime == null)
-                AnimeList = null;
-            else if(Settings.DefaultAnime.Provider != AnimeList.Api || Settings.DefaultAnime.Username != AnimeList.Username)
+                AnimeList = null; // The account is null!
+            // The list is null (but the default is not.. adding account) OR the account has changed
+            else if(AnimeList == null || Settings.DefaultAnime.Provider != AnimeList.Api || Settings.DefaultAnime.Username != AnimeList.Username)
                 AnimeList = GetAnimeList();
             if(Settings.DefaultManga == null)
                 MangaList = null;
-            else if(Settings.DefaultManga.Provider != MangaList.Api || Settings.DefaultManga.Username != MangaList.Username)
+            else if(MangaList == null || Settings.DefaultManga.Provider != MangaList.Api || Settings.DefaultManga.Username != MangaList.Username)
                 MangaList = GetMangaList();
             
             // Reload the list - what if the user changed the title type?

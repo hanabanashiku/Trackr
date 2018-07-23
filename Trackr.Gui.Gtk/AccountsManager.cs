@@ -124,7 +124,10 @@ namespace Trackr.Gui.Gtk {
 				// it's not already there
 				if(!AccountList.Contains(dialog.Result)) {
 					AccountList.Add(dialog.Result);
-					AddToStore(dialog.Result);
+					// set defaults
+					if(dialog.DefaultAnime) DefAnime = dialog.Result;
+					if(dialog.DefaultManga) DefManga = dialog.Result;
+					AddToStore(dialog.Result); // add account and update default display
 				}
 				else { // whoops
 					using(var md = new MessageDialog(null, DialogFlags.DestroyWithParent, MessageType.Error, ButtonsType.Ok,

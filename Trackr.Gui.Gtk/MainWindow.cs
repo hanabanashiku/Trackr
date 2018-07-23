@@ -204,6 +204,7 @@ namespace Trackr.Gui.Gtk {
 
 		}
 
+		// Use this to trigger the settings window!
 		internal void OnSettings(object o, EventArgs args) {
 			var s = new SettingsWindow(false);
 			if(s.Run() == (int) ResponseType.Accept) {

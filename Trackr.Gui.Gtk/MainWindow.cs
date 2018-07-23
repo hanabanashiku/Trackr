@@ -209,7 +209,16 @@ namespace Trackr.Gui.Gtk {
 			var s = new SettingsWindow(false);
 			if(s.Run() == (int) ResponseType.Accept) {
 				Program.SettingsChanged();
-				//TODO: Change accounts shown if the default accounts have been changed
+				
+				// Update current page if accounts have changed!
+				if((Page)_nb.CurrentPage == Page.Anime && Program.AnimeList == null)
+					SwitchTab(Page.NullAccount);
+				else if((Page)_nb.CurrentPage == Page.Manga && Program.MangaList == null)
+					SwitchTab(Page.NullAccount);
+				else if((Page)_nb.CurrentPage == Page.NullAccount) {
+					if(Program.AnimeList != null) SwitchTab(Page.Anime);
+					else if(Program.MangaList != null) SwitchTab(Page.Manga);
+				}
 			}
 			s.Destroy();
 		}

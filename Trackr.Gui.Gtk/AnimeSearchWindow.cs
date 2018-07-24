@@ -20,7 +20,8 @@ namespace Trackr.Gui.Gtk {
 			Submit.Clicked += OnSubmit;
 			_treeView.Visible = false;
 			AddItem.Clicked += OnAdd;
-			_treeView.CursorChanged += OnRowSelected;
+			EditItem.Clicked += OnEdit;
+			_treeView.Selection.Changed += OnSelectionChanged;
 		}
 
 		private async void Search(string keywords) {
@@ -81,6 +82,7 @@ namespace Trackr.Gui.Gtk {
 
 		// User clicked the add button
 		private void OnAdd(object o, EventArgs args) {
+			if(_treeView.Selection.CountSelectedRows() == 0) return;
 			_treeView.Selection.GetSelected(out var i);
 			var a = (Anime)_treeView.Store.GetValue(i, 0);
 			if(a.ListStatus != ApiEntry.ListStatuses.NotInList) return;
@@ -94,13 +96,25 @@ namespace Trackr.Gui.Gtk {
 			Refresh();
 		}
 
-		private void OnRowSelected(object o, EventArgs args) {
-			EditItem.Sensitive = true;
-			AddItem.Sensitive = true;
-			InfoItem.Sensitive = true;
-			_treeView.Selection.GetSelected(out var i);
-			var a = (ApiEntry)_treeView.Store.GetValue(i, 0);
-			AddItem.Visible = a.ListStatus == ApiEntry.ListStatuses.NotInList;
+		private void OnSelectionChanged(object o, EventArgs args) {
+			if(_treeView.Selection.CountSelectedRows() == 0) {
+				EditItem.Sensitive = false;
+                AddItem.Sensitive = false;
+                InfoItem.Sensitive = false;
+			}
+			else {
+				EditItem.Sensitive = true;
+				AddItem.Sensitive = true;
+				InfoItem.Sensitive = true;
+				_treeView.Selection.GetSelected(out var i);
+				var a = (ApiEntry)_treeView.Store.GetValue(i, 0);
+				AddItem.Visible = a.ListStatus == ApiEntry.ListStatuses.NotInList;
+			}
+		}
+
+		private void OnEdit(object o, EventArgs args) {
+			if(_treeView.Selection.CountSelectedRows() == 0) return;
+			_treeView.ActivateRow(_treeView.Selection.GetSelectedRows()[0], _treeView.GetColumn(0));
 		}
 
 	}

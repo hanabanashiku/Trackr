@@ -43,6 +43,5 @@ namespace Trackr.Gui.Gtk {
 			PackEnd(_toolbar, false, false, 0);
 		}
 		
-		
 	}
 }

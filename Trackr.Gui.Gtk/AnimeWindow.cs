@@ -3,6 +3,7 @@ using Gtk;
 using Trackr.Api;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace Trackr.Gui.Gtk {
@@ -53,40 +54,50 @@ namespace Trackr.Gui.Gtk {
 			var sw = new ScrolledWindow();
 			sw.SetPolicy(PolicyType.Automatic, PolicyType.Automatic);
 			sw.Add(WatchingTree);
+			WatchingTree.Selection.Changed += OnSelectionChanged;
 			_nb.AppendPage(sw, new Label("Watching"));
 			
 			// Completed page
 			sw = new ScrolledWindow();
 			sw.SetPolicy(PolicyType.Automatic, PolicyType.Automatic);
 			sw.Add(CompletedTree);
+			CompletedTree.Selection.Changed += OnSelectionChanged;
 			_nb.AppendPage(sw, new Label("Completed"));
 			
 			// Hold page
 			sw = new ScrolledWindow();
 			sw.SetPolicy(PolicyType.Automatic, PolicyType.Automatic);
 			sw.Add(HoldTree);
+			HoldTree.Selection.Changed += OnSelectionChanged;
 			_nb.AppendPage(sw, new Label("On Hold"));
 			
 			// Planned page
 			sw = new ScrolledWindow();
 			sw.SetPolicy(PolicyType.Automatic, PolicyType.Automatic);
 			sw.Add(PlannedTree);
+			PlannedTree.Selection.Changed += OnSelectionChanged;
 			_nb.AppendPage(sw, new Label("Planned"));
 			
 			// Dropped page
 			sw = new ScrolledWindow();
 			sw.SetPolicy(PolicyType.Automatic, PolicyType.Automatic);
 			sw.Add(DroppedTree);
+			DroppedTree.Selection.Changed += OnSelectionChanged;
 			_nb.AppendPage(sw, new Label("Dropped"));
 			
 			PackEnd(_toolbar, false, false, 0);
 			_toolbar.ToolbarStyle = ToolbarStyle.Icons;
 			_toolbar.Add(_infoItem);
 			_infoItem.TooltipText = "View Title Information";
+			_infoItem.Sensitive = false;
 			_toolbar.Add(_editItem);
 			_editItem.TooltipText = "Edit Title Information";
+			_editItem.Sensitive = false;
+			_editItem.Clicked += OnEdit;
 			_toolbar.Add(_removeItem);
 			_removeItem.TooltipText = "Remove Title";
+			_removeItem.Sensitive = false;
+			_removeItem.Clicked += OnRemove;
 			_toolbar.Add(SyncItem);
 			SyncItem.TooltipText = "Synchronize List With Server";
 			_toolbar.Add(SettingsItem);
@@ -96,6 +107,8 @@ namespace Trackr.Gui.Gtk {
 			_entryFixed.Put(FilterEntry, 250, 10);
 			FilterEntry.Changed += OnFilterChanged;
 			FilterEntry.Activated += OnFilterActivated;
+
+			_nb.SwitchPage += delegate { OnSelectionChanged(_nb, EventArgs.Empty); };
 		} // build
 
 		internal void Fill() {
@@ -136,6 +149,65 @@ namespace Trackr.Gui.Gtk {
 			Program.Win.AnimeSearch.SearchBox.Text = FilterEntry.Text;
 			FilterEntry.Text = "";
 			Program.Win.AnimeSearch.Submit.Click();
+		}
+
+		// Get the tree matching the current tab
+		private AnimeTreeView GetCurrentTree() {
+			switch(_nb.CurrentPage) {
+				case 0: // Watching
+					return WatchingTree;
+				case 1: // Completed
+					return CompletedTree;
+				case 2: // Hold
+					return HoldTree;
+				case 3: // Planned
+					return PlannedTree;
+				case 4: // Dropped
+					return DroppedTree;
+				default: return null;
+					
+			}
+		}
+
+		private void OnSelectionChanged(object o, EventArgs args) {
+			if(GetCurrentTree().Selection.CountSelectedRows() == 0) {
+				_infoItem.Sensitive = false;
+				_editItem.Sensitive = false;
+				_removeItem.Sensitive = false;
+			}
+			else {
+				_infoItem.Sensitive = true;
+				_editItem.Sensitive = true;
+				_removeItem.Sensitive = true;
+			}
+		}
+
+		// The edit button is clicked - same as double clicking on an entry
+		private void OnEdit(object o, EventArgs args) {
+			var v = GetCurrentTree();
+			if(v == null || v.Selection.CountSelectedRows() == 0) return;
+			
+			foreach(var s in v.Selection.GetSelectedRows())
+				v.ActivateRow(s, v.GetColumn(0));
+		}
+
+		private void OnRemove(object o, EventArgs args) {
+			var v = GetCurrentTree();
+			if(v == null || v.Selection.CountSelectedRows() == 0) return;
+
+			var d = new MessageDialog(Program.Win, DialogFlags.DestroyWithParent, MessageType.Question, ButtonsType.YesNo, "Delete the selected media?");
+			var res = (ResponseType)d.Run();
+			d.Destroy();
+			if(res != ResponseType.Yes) return;
+			
+			foreach(var s in v.Selection.GetSelectedRows()) {
+				v.Store.GetIter(out var i, s);
+				var a = (Anime)v.Store.GetValue(i, 0);
+				Program.AnimeList.Remove(a);
+				v.Store.Remove(ref i);
+			}
+			
+			Program.Win.RefreshAnimeLists();
 		}
 
 		// Sync the list with the store

@@ -158,7 +158,7 @@ namespace Trackr.Gui.Gtk {
 			if(a.Synonyms.ToList().Exists(x => x.ToLower().Contains(filter))) return true;
 			return false;
 		}
-
+		
 		protected override void OnRowActivated(object o, RowActivatedArgs args) {
 			Store.GetIter(out var i, args.Path);
 			var a = (Anime)Store.GetValue(i, 0); // original

@@ -82,7 +82,6 @@ namespace Trackr.Core {
 				fs = new FileStream(FileName, FileMode.Open);
 				return (Settings)f.Deserialize(fs);
 			} catch(Exception e) {
-				Console.WriteLine("Warning: " + e.Message);
 				return new Settings();
 			} finally {
 				fs?.Close();

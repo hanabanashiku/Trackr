@@ -56,7 +56,7 @@ namespace Trackr.List {
                 Task.Run(() => t.Sync());
                 return list;
             }
-            catch(FileNotFoundException) {
+            catch(IOException) {
                 list = new AnimeList(client);
                 list.Sync().Wait();
                 return list;

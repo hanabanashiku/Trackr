@@ -11,11 +11,10 @@ using System.Net.Http.Headers;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
-  using System.Web;
-  using Trackr.Core;
+  
+ using Trackr.Core;
 
 namespace Trackr.Api {
-	[Serializable]
 	public class AniList : Api, IAnime, IManga {
 		public const string Identifier = "AniList";
 		/// <summary>
@@ -54,61 +53,108 @@ namespace Trackr.Api {
 		private readonly UserPass _credentials; // The password will be the authorization code
 		private DateTime _expiration;
 		private int _userId;
+		private Account _account;
+
+		/// <summary>
+		/// This event is raised if the token has expired (older than a year)
+		/// </summary>
+		/// <remarks>When the token has expired, a new authentication token must be retrieved from the server.
+		/// The user is responsible for signing in and copying the authentication token into the client. The client should
+		/// then update the token using ReceiveAuthToken() and then exchange the token for an access token.</remarks>
+		public event EventHandler TokenExpired;
 		
 		/// <summary>
 		/// The URL to take the user to in order to authorize Trackr.
 		/// </summary>
 		public static string RedirectUrl => OAuth + $"authorize?client_id={ClientId}&response_type=code";
 
-
+		
 		/// <summary>
-		/// Instantiate AniList
+		/// Create a new instance of the AniList API.
 		/// </summary>
-		/// <param name="credentials">The credentials should contain authorization code if Username is null, or a refresh token otherwise.</param>
-		public AniList(UserPass credentials) {
-			_credentials = credentials;
-			_expiration = DateTime.Now;
+		/// <param name="a">The account information to use</param>
+		/// <remarks>We are using a refernece to the account because we need to actively keep track of the expiration date of the token.
+		/// Note as well that the username component will be null if we have an authentication token, and defined if it is an access token.</remarks>
+		public AniList(Account a) {
+			_account = a;
+			_credentials = a.Credentials;
+			_expiration = a.Expiration;
 			_client = new HttpClient();
-			_credentials.Username = null; // this is how we verify the credentials
 		}
 
-		// If username is null, password is an auth token
-		// Otherwise, it is a refresh token
-		private async Task<bool> Authenticate() {
-			_client.DefaultRequestHeaders.Authorization = null;
-			
-			FormUrlEncodedContent data;
-			
-			// if we haven't gotten a username, we don't have a refresh code!
-			if (_credentials.Username == null)
-				data = new FormUrlEncodedContent(new [] {
-					new KeyValuePair<string, string>("grant_type", "authorization_code"),
-					new KeyValuePair<string, string>("client_id", ClientId),
-					new KeyValuePair<string, string>("client_secret", ClientSecret),
-					new KeyValuePair<string, string>("code", _credentials.Password)
-				});
-			else {
-				data = new FormUrlEncodedContent(new [] {
-					new KeyValuePair<string, string>("grant_type", "refresh_token"),
-					new KeyValuePair<string, string>("client_id", ClientId),
-					new KeyValuePair<string, string>("client_secret", ClientSecret),
-					new KeyValuePair<string, string>("refresh_token", _credentials.Password)
-				});
-			}
+		// If we have an auth code, we must trade it for an access token
+		private async Task<bool> FetchToken() {
+			var data = new FormUrlEncodedContent(new [] {
+				new KeyValuePair<string, string>("grant_type", "authorization_code"),
+				new KeyValuePair<string, string>("client_id", ClientId),
+				new KeyValuePair<string, string>("client_secret", ClientSecret),
+				new KeyValuePair<string, string>("code", _credentials.Password), 
+			});
 			var response = await _client.PostAsync(OAuth + "token", data);
-			Debug.WriteIf(!response.IsSuccessStatusCode, response.Content.ReadAsStringAsync().Result + $" ({response.StatusCode})", "AniList Token WARNING");
+			Debug.WriteIf(!response.IsSuccessStatusCode, response.Content.ReadAsStringAsync().Result + $"({response.StatusCode}");
 			var json = (JsonObject)JsonValue.Parse(await response.Content.ReadAsStringAsync());
 			if(response.StatusCode != HttpStatusCode.OK) throw new ApiRequestException(json?["message"].ToString() ?? response.StatusCode.ToString());
 			if(json?["access_token"] == null) throw new ApiRequestException("Null response");
 			_client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(json["token_type"], json["access_token"]);
+			_credentials.Password = json["access_token"]; // store the new access token
 			_expiration = DateTime.Now.AddSeconds(json["expires_in"]);
-			_credentials.Password = json["refresh_token"]; // always use credentials.Password. This will be the refresh token or the auth code!!
-			Console.WriteLine(_credentials.Password);
+			_account.Expiration = _expiration;
 			return true;
 		}
 
+		/// <summary>
+		/// This function must be called when and only when AniList invokes the TokenExpired event.
+		/// Calling this function will update the saved token in order to trade it for an access token.
+		/// </summary>
+		/// <param name="token">The new authentication token</param>
+		public void SendAuthToken(string token) {
+			_credentials.Password = token;
+		}
+
+		private bool ReceiveAuthToken() {
+			// If the token expiration event is null, it will cause problems; we leave an exception for if this is the first time we are getting the data (add account screen)
+			if(TokenExpired == null) throw new ApiRequestException("[AniList] The token event handler has not been properly connected to handle it!");
+			var token = _credentials.Password;
+			TokenExpired.Invoke(this, EventArgs.Empty); // this should block the thread until the user is done entering the pin
+			if(_credentials.Password == string.Empty) { // user decided not to update it!
+				_credentials.Password = token;
+				return false;
+			}
+			return true;
+		}
+		
+		// Check if we still have an authentication token that needs to be exchanged, of if our access token has expired
+		private async Task<bool> AuthenticationCheck() {
+			// We have an authorization token.. we want an access token!
+			if(_credentials.Username == null) {
+				if(_credentials.Password == null)
+					if(!ReceiveAuthToken()) return false;
+				await FetchToken();
+				await FetchUsername();
+			}
+			// We have an access token, but it expired...
+			else if(_expiration <= DateTime.Now) {
+				if(!ReceiveAuthToken()) return false;
+				await FetchToken();
+				await FetchUsername();
+			}
+
+			// We've authorized the wrong account! This may corrupt the lists!
+			// if it is null, this is the first time we're getting the data!
+			if(_account.Username != null && _credentials.Username != _account.Username) {
+				_credentials.Username = null;
+				_credentials.Password = string.Empty;
+				throw new ApiRequestException($"[AniList] The provided authorization token has attempted to authorize " +
+				                              $"with the wrong account! Please use {_account.Username}." +
+				                              $"If the username has changed recently, please delete the account in " +
+				                              $"settings and add it again.");
+			}
+			return true;
+		}
+		
+		// grab the username from the server
 		private async Task FetchUsername() {
-			if(_expiration <= DateTime.Now) Authenticate().Wait();
+			
 			const string q = @"
 				{
   					Viewer{
@@ -129,13 +175,19 @@ namespace Trackr.Api {
 		/// <summary>
 		/// Running this function authenticates the user with AniList's OAuth2 service.
 		/// </summary>
-		/// <remarks>Authentication will be done implicitly after the authentication token expires.</remarks>
+		/// <remarks>Authentication will be required once the access token expires - handle with the TokenExpired event.</remarks>
 		/// <returns>True on success</returns>
 		public override async Task<bool> VerifyCredentials() {
-			await FetchUsername();
+			await AuthenticationCheck();
 			return Username != null;
 		}
 			
+		/// <summary>
+		/// Add an anime to the anime list
+		/// </summary>
+		/// <param name="id">The AniList media ID</param>
+		/// <param name="listStatus">The list status of the anime</param>
+		/// <returns>True on success</returns>
 		public async Task<bool> AddAnime(int id, ApiEntry.ListStatuses listStatus) {
 			const string q = @"
 				{
@@ -154,6 +206,11 @@ namespace Trackr.Api {
 			return id == json?["data"]?["SaveMediaListEntry"]["mediaId"];
 		}
 		
+		/// <summary>
+		/// Add an anime to the anime list
+		/// </summary>
+		/// <param name="id">The AniList media ID</param>
+		/// <returns>True on success</returns>
 		public async Task<bool> AddAnime(int id) {
 			const string q = @"
 				{
@@ -173,6 +230,11 @@ namespace Trackr.Api {
 			return id == json?["data"]?["SaveMediaListEntry"]["mediaId"];
 		}
 
+		/// <summary>
+		/// Remove an anime from the anime list.
+		/// </summary>
+		/// <param name="id">The AniList media ID</param>
+		/// <returns>True on success</returns>
 		public async Task<bool> RemoveAnime(int id) {
 			var getId = GetEntryId(id);
 
@@ -196,6 +258,11 @@ namespace Trackr.Api {
 			return json["data"]["DeleteMediaListEntry"]["deleted"];
 		}
 
+		/// <summary>
+		/// Search for an anime in the AniList database
+		/// </summary>
+		/// <param name="keywords">The search terms to use</param>
+		/// <returns>A list of results</returns>
 		public async Task<List<Anime>> FindAnime(string keywords) {
 			const string q = @"
 				{
@@ -242,6 +309,11 @@ namespace Trackr.Api {
 			return ret;
 		}
 
+		/// <summary>
+		/// Update an anime from the list.
+		/// </summary>
+		/// <param name="anime">The anime to update, with updated values</param>
+		/// <returns>True on success</returns>
 		public async Task<bool> UpdateAnime(Anime anime) {
 			var id = await GetEntryId(anime.Id);
 			if(id == -1) {
@@ -277,6 +349,10 @@ namespace Trackr.Api {
 			return true;
 		}
 
+		/// <summary>
+		/// Pulls a copy of the anime list from the server.
+		/// </summary>
+		/// <returns>The list of anime on the server's copy of the list.</returns>
 		public async Task<List<Anime>> PullAnimeList() {
 			var ret = new List<Anime>();
 			JsonValue json;
@@ -326,18 +402,39 @@ namespace Trackr.Api {
 			return ret;
 		}
 
+		/// <summary>
+		/// Add a manga to the list.
+		/// </summary>
+		/// <param name="id">The AniList media ID</param>
+		/// <param name="listStatus">The manga list status</param>
+		/// <returns>True on success</returns>
 		public async Task<bool> AddManga(int id, ApiEntry.ListStatuses listStatus) {
 			return await AddAnime(id, listStatus); // Exact same request, anime and manga ids are unique!
 		}
 
+		/// <summary>
+		/// Add a manga to the list.
+		/// </summary>
+		/// <param name="id">The AniList media ID</param>
+		/// <returns>True on success</returns>
 		public async Task<bool> AddManga(int id) {
 			return await AddAnime(id);
 		}
 		
+		/// <summary>
+		/// Remove a manga from the list.
+		/// </summary>
+		/// <param name="id">The AniList media ID</param>
+		/// <returns>True on success</returns>
 		public async Task<bool> RemoveManga(int id) {
 			return await RemoveAnime(id);
 		}
 
+		/// <summary>
+		/// Search for a manga in the AniList database.
+		/// </summary>
+		/// <param name="keywords">The search terms to use</param>
+		/// <returns>A list of search results</returns>
 		public async Task<List<Manga>> FindManga(string keywords) {
 			const string q = @"
 				{
@@ -384,6 +481,11 @@ namespace Trackr.Api {
 			return ret;
 		}
 		
+		/// <summary>
+		/// Update a manga on the list
+		/// </summary>
+		/// <param name="manga">The manga to update with updated values</param>
+		/// <returns>True on success</returns>
 		public async Task<bool> UpdateManga(Manga manga) {
 			var id = await GetEntryId(manga.Id);
 			if(id == -1) {
@@ -420,6 +522,10 @@ namespace Trackr.Api {
 			return true;
 		}
 
+		/// <summary>
+		/// Pulls a copy of the manga list from the server
+		/// </summary>
+		/// <returns>A list of manga from the server's copy of the list.</returns>
 		public async Task<List<Manga>> PullMangaList() {
 			var ret = new List<Manga>();
 			JsonValue json;
@@ -472,8 +578,8 @@ namespace Trackr.Api {
 		}
 
 		private async Task<int> GetEntryId(int id) {
-			if(_expiration <= DateTime.Now) await Authenticate();
-
+			await AuthenticationCheck();
+			
 			const string q = @"
 				query($userId: Int, $mediaId: Int) {
 					MediaList(userId: $userd, $mediaId: $mediaId) {
@@ -658,6 +764,7 @@ namespace Trackr.Api {
 				image);
 		}
 		
+		// Pulls client information from the embedded json file
 		private static void GetClientInfo() {
 			using(var s = Assembly.GetExecutingAssembly().GetManifestResourceStream("Trackr.Api.Resources.anilist.json")) {
 				if(s == null) throw new ApiRequestException("Client data not found");
@@ -669,16 +776,16 @@ namespace Trackr.Api {
 			}
 		}
 
+		// Send an API request. This also implicitly checks the access token status.
 		private async Task<JsonValue> SendRequest(string query, JsonValue variables) {
-			Task auth = null;
-			if(_expiration <= DateTime.Now) auth = Authenticate();
+			Task auth = AuthenticationCheck();
 			
 			var req = new JsonObject() {
 				["query"] = query,
 				["variables"] = variables
 			};
-			if(auth != null) await auth;
-			var response = await _client.PostAsync(UrlBase, new StringContent(req, Encoding.UTF8, ContentType));
+			await auth;
+			var response = await _client.PostAsync(UrlBase, new StringContent(req.ToString(), Encoding.UTF8, ContentType));
 			var json = JsonValue.Parse(await response.Content.ReadAsStringAsync());
 			if(json == null) throw new ApiRequestException("Null JSON value");
 			if(!response.IsSuccessStatusCode) {

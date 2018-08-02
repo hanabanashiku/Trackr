@@ -112,7 +112,9 @@ namespace Trackr.Gui.Gtk {
                         list = AnimeList.Load(new Kitsu(act.Credentials));
                         break;
                     case "AniList":
-                        list = AnimeList.Load(new AniList(act.Credentials));
+                        var cli = new AniList(act);
+                        cli.TokenExpired += OnAniListTokenExpired;
+                        list = AnimeList.Load(cli);
                         break;
                     default:
                         return null;
@@ -120,6 +122,7 @@ namespace Trackr.Gui.Gtk {
                 return list;
             }
             catch(Exception e) {
+                Debug.WriteLine(e.InnerException?.Message ?? e.Message);
                 Debug.WriteLine(e.InnerException?.StackTrace ?? e.StackTrace);
                 var md = new MessageDialog(Win, DialogFlags.DestroyWithParent, MessageType.Error, ButtonsType.YesNo,
                     "An error was encountered while loading the default anime list: \n" + (e.InnerException?.Message ?? e.Message) +
@@ -150,7 +153,9 @@ namespace Trackr.Gui.Gtk {
                         list = MangaList.Load(new Kitsu(act.Credentials));
                         break;
                     case "AniList":
-                        list = MangaList.Load(new AniList(act.Credentials));
+                        var cli = new AniList(act);
+                        cli.TokenExpired += OnAniListTokenExpired;
+                        list = MangaList.Load(cli);
                         break;
                     default:
                         return null;
@@ -173,6 +178,11 @@ namespace Trackr.Gui.Gtk {
                 return null;
             }
         }
-        
+
+        // Get a new token if it has expired!
+        internal static void OnAniListTokenExpired(object o, EventArgs args) {
+            var pin = AccountDialog.RequestAniListToken();
+            ((AniList)o).SendAuthToken(pin);
+        }
     }
 }

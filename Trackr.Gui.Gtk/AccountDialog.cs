@@ -225,45 +225,58 @@ namespace Trackr.Gui.Gtk {
 					break;
 				
 				case "AniList":
-					var ad = new AniListLogin();
-					if(ad.Run() == (int)ResponseType.Accept) {
-						cred = new UserPass(null, ad.Pin);
-						api = new AniList(cred);
-						try {
-							res = await api.VerifyCredentials();
-						}
-						catch(Exception e) {
-							var ed = new MessageDialog(null, DialogFlags.DestroyWithParent, MessageType.Error, ButtonsType.Ok,
-								e.InnerException?.Message ?? e.Message) {WindowPosition = WindowPosition.Center};
-							ed.Run();
-							ed.Destroy();
-							Respond(ResponseType.Reject);
-							Debug.WriteLine("[Exception] " + (e.InnerException?.Message ?? e.Message));
-							ad.Destroy();
-							return;
-						}
-
-						if(res) {
-							Result = new Account(api.Name, api.Username, cred);
-							Respond(ResponseType.Accept);
-						}
-						else { // Likely an invalid pin!
-							var ed = new MessageDialog(null, DialogFlags.DestroyWithParent, MessageType.Error, ButtonsType.Ok,
-								"An invalid authentication pin was entered.") {WindowPosition = WindowPosition.Center};
-							ed.Run();
-							ed.Destroy();
-							ad.Destroy();
-							Respond(ResponseType.Reject);
-						}
+					var pin = RequestAniListToken();
+					cred = new UserPass(null, pin);
+					var account = new Account(AniList.Identifier, null, cred);
+					api = new AniList(account);
+					((AniList)api).TokenExpired += Program.OnAniListTokenExpired;
+					
+					try {
+						res = await api.VerifyCredentials();
 					}
-					else
+					catch(Exception e) {
+						var ed = new MessageDialog(null, DialogFlags.DestroyWithParent, MessageType.Error, ButtonsType.Ok,
+							e.InnerException?.Message ?? e.Message) {WindowPosition = WindowPosition.Center};
+						ed.Run();
+						ed.Destroy();
 						Respond(ResponseType.Reject);
-					ad.Destroy();
+						Debug.WriteLine("[Exception] " + (e.InnerException?.Message ?? e.Message));
+						return;
+					}
+
+					if(res) {
+						account.Username = api.Username;
+						Result = account;
+						Respond(ResponseType.Accept);
+					}
+					else {
+						var ed = new MessageDialog(null, DialogFlags.DestroyWithParent, MessageType.Error, ButtonsType.Ok,
+							"An invalid authentication pin was entered.") {WindowPosition = WindowPosition.Center};
+						ed.Run();
+						ed.Destroy();
+						Respond(ResponseType.Reject);
+					}
 					break;
+				
 				default:
 					Debug.Fail($"The account type {_type.ActiveText} has not been implemented.");
+					Respond(ResponseType.Reject);
 					break;
 			}
+		}
+
+		/// <summary>
+		/// Calling this function will redirect the user to the AniList authentication page and request that they copy an authentication token.
+		/// </summary>
+		/// <returns>A pin on success, null on cancel</returns>
+		public static string RequestAniListToken() {
+			var ad = new AniListLogin();
+			if(ad.Run() == (int)ResponseType.Accept) {
+				var pin = ad.Pin;
+				ad.Destroy();
+				return pin;
+			}
+			return null;
 		}
 	}
 }

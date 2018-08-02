@@ -29,6 +29,11 @@ namespace Trackr.Core {
 		/// </remarks>
 		public UserPass Credentials;
 
+		/// <summary>
+		/// If an access token is used, this is when it expires
+		/// </summary>
+		public DateTime Expiration;
+
 
 		/// <param name="prov">The API provider</param>
 		/// <param name="username">The username of the account</param>
@@ -39,6 +44,7 @@ namespace Trackr.Core {
 			Username = username;
 			Credentials = credentials;
 			Email = email;
+			Expiration = DateTime.Now;
 		}
 
 		// Copy constructor
@@ -47,17 +53,18 @@ namespace Trackr.Core {
 			Username = a.Username;
 			Credentials = new UserPass(a.Credentials.Username, a.Credentials.Password);
 			Email = a.Email;
+			Expiration = a.Expiration;
 		}
 
 		public static bool operator ==(Account a, Account b) {
 			if(ReferenceEquals(null, a) && ReferenceEquals(null, b)) return true;
 			if(ReferenceEquals(null, a) || ReferenceEquals(null, b)) return false;
-			return a.Provider == b.Provider && a.Username == b.Username;
+			return a.Provider == b.Provider && (a.Username == b.Username || a.Email == b.Email);
 		}
 
 		public static bool operator !=(Account a, Account b) { return !(a == b); }
 
-		protected bool Equals(Account a) {
+		private bool Equals(Account a) {
 			return this == a;
 		}
 		

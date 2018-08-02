@@ -20,7 +20,7 @@ namespace Trackr.Test {
 			
 			Assert.AreNotEqual(act, null);
 			
-			_aniList = new AniList(act?.Credentials);
+			_aniList = new AniList(act);
 			Assert.True(await _aniList.VerifyCredentials());
 			Assert.AreEqual(_aniList.Username, Username); // Run this with this account
 		}
